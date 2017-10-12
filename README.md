@@ -9,3 +9,7 @@ Execute scripts in this order:
 2) plotdata.py
 3) transformdata.py
 4) forecast.py
+
+Activate keras environment: source activate keras-test
+
+Run python script: python forecast.py

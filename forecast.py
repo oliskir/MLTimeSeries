@@ -1,19 +1,4 @@
 
-# Convert data series to format suitable for supervised learning.
-#
-# We will frame the supervised learning problem as predicting the pollution 
-# at the current hour (t) given the pollution measurement and weather 
-# conditions at the prior time step.
-#
-# First, the pollution.csv dataset is loaded. The wind speed feature 
-# is label encoded (integer encoded). [OBS: This could further be one-hot 
-# encoded in the future if you are interested in exploring it.]
-#
-# Next, all features are normalized, then the dataset is transformed into 
-# a supervised learning problem. The weather variables for the hour to be
-# predicted (t) are then removed.
-
-
 from pandas import DataFrame
 from pandas import concat
 from pandas import read_csv
@@ -108,11 +93,8 @@ def prepare_data(series, n_in, n_out, train_frac, n_days):
         l += list(reframed.columns[j+1:])
         l += list(reframed.columns[[j]])
         reframed = reframed.reindex_axis(l, axis=1)
-        
-###        for j in range(n_var - 1):
-###            reframed.drop(reframed.columns[[n_in*n_var+1+i]], axis=1, inplace=True)
 
-    print(reframed.head())
+##    print(reframed.head())
 
     # split into train and test sets
     values = reframed.values
@@ -138,7 +120,7 @@ def fit_lstm(train, n_in, n_out, n_batch, nb_epoch, n_neurons, lstmStateful):
 
     # stacked layers?
     returnSeq = False
-    if len(n_neurons) >= 2
+    if len(n_neurons) >= 2:
         returnSeq = True
 
     # design network
@@ -147,16 +129,17 @@ def fit_lstm(train, n_in, n_out, n_batch, nb_epoch, n_neurons, lstmStateful):
     # 1st LSTM layer:
     model.add(LSTM(n_neurons[0], return_sequences=returnSeq, batch_input_shape=(n_batch, X.shape[1], X.shape[2]), stateful=lstmStateful))
     # more LSTM layers:
-    for n in n_neurons[1:-1]
-        model.add(LSTM(n), return_sequences=True)
-    # last LSTM layer:
-    if len(n_neurons) >= 2
-        model.add(LSTM(n), return_sequences=False)
-        
+    for k in range(1,len(n_neurons)):
+        if k < len(n_neurons)-1:
+            model.add(LSTM(n_neurons[k], return_sequences=True))
+        else:
+            model.add(LSTM(n_neurons[k], return_sequences=False))        
+
     model.add(Dense(y.shape[1]))
     model.compile(loss='mean_squared_error', optimizer='adam')
 
-    print('Neurons: %i' % n_neurons)
+    print('LSTM Layers: %i' % len(n_neurons))
+    print 'Neurons:', n_neurons
     print('Batch size: %i' % n_batch)
     print('Training LSTM model ...')
 
@@ -288,10 +271,10 @@ def plot_forecasts(series, forecasts, n_test):
 # configure
 n_lag = 24
 n_forecast = 24
-n_epochs = 1000
+n_epochs = 100
 n_batch = 100
 lstmStateful = False
-n_neurons = [10, 10]
+n_neurons = [50, 50, 50, 50]
 train_fraction = 0.33
 n_days = -1
 

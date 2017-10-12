@@ -266,14 +266,14 @@ def plot_forecasts(series, forecasts, n_test):
 
 
 # configure
-n_lag = 24
+n_lag = 6
 n_forecast = 24
-n_epochs = 1
-n_batch = 100
+n_epochs = 1000
+n_batch = 500
 lstmStateful = False
-n_neurons = [10]
+n_neurons = [50,50,50,50]
 train_fraction = 0.33
-n_days = 100
+n_days = -1   # -1 will process entire data set
 
 # load dataset
 dataset = read_csv('pollution.csv', header=0, index_col=0)

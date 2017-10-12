@@ -240,20 +240,17 @@ def plot_forecasts(series, forecasts, n_test):
     pyplot.plot(series.values[:, 0], label='data')
     # plot the forecasts in red
     for i in range(len(forecasts[0])):
+        if (i > 2) and (i < len(forecasts[0])-1): 
+            continue
+                    
+        lab = 't+' + str(i+1)
         col = 'red'
-        lab = 't+x'
         if i == 0: 
-            col = 'green'
-            lab = 't+1'
-        elif i == 1: 
             col = 'black'
-            lab = 't+2'
+        elif i == 1: 
+            col = 'green'
         elif i == 2: 
-            col = 'yellow'
-            lab = 't+3'
-        elif i == 3: 
-            col = 'purple'
-            lab = 't+4'
+            col = 'orange'
         
         off_s = len(series) - n_test - len(forecasts[0]) + i + 1
         off_e = off_s + n_test
@@ -271,12 +268,12 @@ def plot_forecasts(series, forecasts, n_test):
 # configure
 n_lag = 24
 n_forecast = 24
-n_epochs = 100
+n_epochs = 1
 n_batch = 100
 lstmStateful = False
-n_neurons = [50, 50, 50, 50]
+n_neurons = [10]
 train_fraction = 0.33
-n_days = -1
+n_days = 100
 
 # load dataset
 dataset = read_csv('pollution.csv', header=0, index_col=0)

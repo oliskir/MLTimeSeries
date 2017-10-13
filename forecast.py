@@ -192,21 +192,24 @@ def make_forecasts(model, n_batch, test, n_in, n_out):
 # inverse data transform
 #-----------------------------------------------------------------------
 def inverse_transform(normalized, scaler, n_var):
+
+    # determine min and max values for forecasted quantity
+    dummy = np.zeros((1, n_var))
+    dummy[0][0] = 0
+    dummy = scaler.inverse_transform(dummy)
+    ymin = dummy[0][0]
+    dummy[0][0] = 1
+    dummy = scaler.inverse_transform(dummy)
+    ymax = dummy[0][0]
+
+    # invert scaling
     inverted = list()
     for i in range(len(normalized)):
         norm_i = array(normalized[i])
         inv_i = list()
         for j in range(len(norm_i)):
-            # Create numpy array with suitable dimensions to perform 
-            # inverse transform.
-            # Set 0th entry equal to pm2.5 while all other entries 
-            # can be set to zero since we do not care about them.
-            norm_ij = np.zeros((1, n_var))
-            norm_ij[0][0] = norm_i[j]
-            # invert scaling
-            inv_scale = scaler.inverse_transform(norm_ij)
-            inv_scale = inv_scale[0, :]
-            inv_i.append(inv_scale[0])
+            y = ymin + (ymax - ymin) * norm_i[j]
+            inv_i.append(y)
 
         # store
         inverted.append(inv_i)
@@ -266,12 +269,12 @@ def plot_forecasts(series, forecasts, n_test):
 
 
 # configure
-n_lag = 6
+n_lag = 24
 n_forecast = 24
 n_epochs = 1000
-n_batch = 500
+n_batch = 100
 lstmStateful = False
-n_neurons = [50,50,50,50]
+n_neurons = [200]
 train_fraction = 0.33
 n_days = -1   # -1 will process entire data set
 

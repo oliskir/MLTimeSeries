@@ -19,7 +19,7 @@ import time
 #-----------------------------------------------------------------------
 # convert time series into supervised learning problem
 #-----------------------------------------------------------------------
-def series_to_supervised(data, n_in=1, n_out=1, dropnan=True):
+def series_to_supervised(data, varname, n_in=1, n_out=1, dropnan=True):
 	"""
 	Frame a time series as a supervised learning dataset.
 	Arguments:
@@ -30,7 +30,7 @@ def series_to_supervised(data, n_in=1, n_out=1, dropnan=True):
 	Returns:
 		Pandas DataFrame of series framed for supervised learning.
 	"""
-	varname = ['pm2.5', 'DEWP', 'TEMP', 'PRES', 'cbwd', 'Iws', 'Is', 'Ir']
+#	varname = ['pm2.5', 'DEWP', 'TEMP', 'PRES', 'cbwd', 'Iws', 'Is', 'Ir']
 	print 'Variables: ', varname
 	print 'Variable to be forecasted: ', varname[0] 
 	n_vars = 1 if type(data) is list else data.shape[1]
@@ -59,31 +59,41 @@ def series_to_supervised(data, n_in=1, n_out=1, dropnan=True):
 #-----------------------------------------------------------------------
 # transform series into train and test sets for supervised learning
 #-----------------------------------------------------------------------
-def prepare_data(series, n_in, n_out, train_frac, n_days):
+def prepare_data(series, n_in, n_out, train_frac, n_days, ignoredVar):
 
     # extract raw values
-    values = dataset.values
+    values = series.values
     
     if n_days > 0:
         values = values[:n_days*24, :]
-    
-    n_var = values.shape[1]
-    
+
     print values.shape[0], 'data points'
 
-    # The 4th column of 'values' (wind direction) is encoded as integers.
+    # The 4th column of 'values' (wind direction) is encoded as integers
     encoder = LabelEncoder()
     values[:,4] = encoder.fit_transform(values[:,4])
 
     # ensure all data is float
     values = values.astype('float32')
 
+    # variable names
+    variableNames = ['pm2.5', 'DEWP', 'TEMP', 'PRES', 'cbwd', 'Iws', 'Is', 'Ir']
+    
+    # remove ignored variables
+    values = np.delete(values, ignoredVar, 1)
+    for j in range(len(ignoredVar)-1, -1, -1):
+        i = ignoredVar[j]
+        del variableNames[i]
+        
+    # number of variables    
+    n_var = values.shape[1]
+
     # normalize features (i.e., restrict values to be between 0 and 1)
     scaler = MinMaxScaler(feature_range=(0, 1))
     scaled = scaler.fit_transform(values)
 
     # frame as supervised learning
-    reframed = series_to_supervised(scaled, n_in, n_out)
+    reframed = series_to_supervised(scaled, variableNames, n_in, n_out)
 
     # rearrange columns so columns we want to predict are at the end
     l = []
@@ -271,12 +281,14 @@ def plot_forecasts(series, forecasts, n_test):
 # configure
 n_lag = 24
 n_forecast = 24
-n_epochs = 1000
+n_epochs = 100
 n_batch = 100
 lstmStateful = False
-n_neurons = [200]
+n_neurons = [50, 50, 50, 50]
 train_fraction = 0.33
 n_days = -1   # -1 will process entire data set
+ignoredVariables = [1, 4, 5, 6, 7]  # numbering begins with zero: 0,1,2...etc
+
 
 # load dataset
 dataset = read_csv('pollution.csv', header=0, index_col=0)
@@ -284,7 +296,7 @@ dataset = read_csv('pollution.csv', header=0, index_col=0)
 # OBS: Value to be forecasted must be in 1st column
 
 # prepare data
-scaler, train, test, n_variables = prepare_data(dataset, n_lag, n_forecast, train_fraction, n_days)
+scaler, train, test, n_variables = prepare_data(dataset, n_lag, n_forecast, train_fraction, n_days, ignoredVariables)
 
 print 'Lag:', n_lag
 print 'Forecast: ', n_forecast

@@ -330,14 +330,14 @@ def plot_forecasts(series, forecasts, n_test):
 # configure
 n_lag = 24
 n_forecast = 24
-n_epochs = 100
+n_epochs = 500
 n_batch = 100
 lstmStateful = False
-n_neurons = [50, 50, 50, 50]
+n_neurons = [12]
 train_fraction = 0.33
 n_days = -1   # -1 will process entire data set
 ignoredVariables = [1, 4, 5, 6, 7]  # numbering begins with zero: 0,1,2...etc
-predictChange = False
+predictChange = True
 validate = True
 
 

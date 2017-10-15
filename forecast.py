@@ -59,7 +59,7 @@ def series_to_supervised(data, varname, n_in=1, n_out=1, dropnan=True):
 #-----------------------------------------------------------------------
 # transform series into train and test sets for supervised learning
 #-----------------------------------------------------------------------
-def prepare_data(series, n_in, n_out, train_frac, n_days, ignoredVar):
+def prepare_data(series, n_in, n_out, train_frac, n_days, ignoredVar, predictChange):
 
     # extract raw values
     values = series.values
@@ -67,7 +67,8 @@ def prepare_data(series, n_in, n_out, train_frac, n_days, ignoredVar):
     if n_days > 0:
         values = values[:n_days*24, :]
 
-    print values.shape[0], 'data points'
+    # number of data points
+    N = values.shape[0]
 
     # The 4th column of 'values' (wind direction) is encoded as integers
     encoder = LabelEncoder()
@@ -85,6 +86,18 @@ def prepare_data(series, n_in, n_out, train_frac, n_days, ignoredVar):
         i = ignoredVar[j]
         del variableNames[i]
         
+    # add rate-of-change variable
+    if False:
+        variableNames.insert(0, 'Dpm2.5')        
+        values = np.c_[ np.zeros(N), values ]
+        for i in range(1, N-1):
+            values[i][0] = values[i][1] - values[i-1][1]
+        values = np.delete(values, N-1, axis=0)
+        values = np.delete(values, 0, axis=0)
+        N = values.shape[0]
+
+    print N, 'data points'
+        
     # number of variables    
     n_var = values.shape[1]
 
@@ -95,16 +108,25 @@ def prepare_data(series, n_in, n_out, train_frac, n_days, ignoredVar):
     # frame as supervised learning
     reframed = series_to_supervised(scaled, variableNames, n_in, n_out)
 
-    # rearrange columns so columns we want to predict are at the end
+    # rearrange columns so the columns we want to predict are at the end
     l = []
     for i in range(n_out):
-        j = n_in*n_var+(n_var-1)*i  # pm2.5(t+i)
+        j = n_in * n_var + (n_var - 1) * i  # pm2.5(t+i)
         l = list(reframed.columns[:j])
         l += list(reframed.columns[j+1:])
         l += list(reframed.columns[[j]])
         reframed = reframed.reindex_axis(l, axis=1)
 
-##    print(reframed.head())
+    # if predicting change, calculate deviation relative to pm2.5(t).
+    # (add 1 and divide by 2 to ensure that deviation is between 0 and 1)
+    if predictChange:    
+        key_0 = reframed.columns[(n_in - 1) * n_var]
+        n = reframed.shape[1]
+        for i in range(n-1, n-n_out-1, -1):
+            key = reframed.columns[i]
+            reframed[key] = reframed[key] - reframed[key_0]
+            reframed[key] = reframed[key]+1
+            reframed[key] = reframed[key]*0.5
 
     # split into train and test sets
     values = reframed.values
@@ -122,11 +144,17 @@ def prepare_data(series, n_in, n_out, train_frac, n_days, ignoredVar):
 #-----------------------------------------------------------------------
 # fit an LSTM network to training data
 #-----------------------------------------------------------------------
-def fit_lstm(train, n_in, n_out, n_batch, nb_epoch, n_neurons, lstmStateful):
+def fit_lstm(train, n_in, n_out, n_batch, nb_epoch, n_neurons, lstmStateful, validate, test):
 
     # split into input (X) and output (y)
+
+    # train
     X, y = train[:, :-n_out], train[:, -n_out:]
     X = X.reshape(X.shape[0], 1, X.shape[1])
+
+    # test
+    X_test, y_test = test[:, :-n_out], test[:, -n_out:]
+    X_test = X_test.reshape(X_test.shape[0], 1, X_test.shape[1])
 
     # stacked layers?
     returnSeq = False
@@ -154,14 +182,31 @@ def fit_lstm(train, n_in, n_out, n_batch, nb_epoch, n_neurons, lstmStateful):
     print('Training LSTM model ...')
 
     # fit network
-    start_time = 0
-    for i in range(nb_epoch):
-        if i == 1: 
-            start_time = time.time()
-        j = i + 1
-        print("Epoch {0}/{1}".format(j, nb_epoch))
-        model.fit(X, y, epochs=1, batch_size=n_batch, verbose=0, shuffle=False)
-        model.reset_states()
+###    start_time = 0
+###    for i in range(nb_epoch):
+###        if i == 1: 
+###            start_time = time.time()
+###        j = i + 1
+###        print("Epoch {0}/{1}".format(j, nb_epoch))
+###        model.fit(X, y, epochs=1, batch_size=n_batch, verbose=0, shuffle=False)
+###        model.reset_states()
+
+    start_time = time.time()
+    
+    if validate:
+        print '(Running validation enabled)'
+        history = model.fit(X, y, epochs=nb_epoch, batch_size=n_batch, validation_data=(X_test, y_test), verbose=2, shuffle=False)
+    else:
+        print '(Running validation disabled)'
+        history = model.fit(X, y, epochs=nb_epoch, batch_size=n_batch, verbose=2, shuffle=False)
+
+    # plot history
+    ax = pyplot.plot(history.history['loss'], label='train')
+    if validate:
+        pyplot.plot(history.history['val_loss'], label='test')
+    pyplot.yscale('log')
+    pyplot.legend()
+    pyplot.show()
 
     t = (time.time() - start_time) / nb_epoch
     print("%.1f seconds/epoch" % t)
@@ -201,7 +246,7 @@ def make_forecasts(model, n_batch, test, n_in, n_out):
 #-----------------------------------------------------------------------
 # inverse data transform
 #-----------------------------------------------------------------------
-def inverse_transform(normalized, scaler, n_var):
+def inverse_transform(normalized, scaler, n_var, predictChange, baseline):
 
     # determine min and max values for forecasted quantity
     dummy = np.zeros((1, n_var))
@@ -218,7 +263,11 @@ def inverse_transform(normalized, scaler, n_var):
         norm_i = array(normalized[i])
         inv_i = list()
         for j in range(len(norm_i)):
-            y = ymin + (ymax - ymin) * norm_i[j]
+            yn = norm_i[j]
+            if predictChange:
+                yn = 2 * yn - 1
+                yn = yn + baseline[i]
+            y = ymin + (ymax - ymin) * yn
             inv_i.append(y)
 
         # store
@@ -288,21 +337,27 @@ n_neurons = [50, 50, 50, 50]
 train_fraction = 0.33
 n_days = -1   # -1 will process entire data set
 ignoredVariables = [1, 4, 5, 6, 7]  # numbering begins with zero: 0,1,2...etc
+predictChange = False
+validate = True
 
 
 # load dataset
 dataset = read_csv('pollution.csv', header=0, index_col=0)
 
-# OBS: Value to be forecasted must be in 1st column
+# OBS: Value to be forecasted must be in column 0
 
 # prepare data
-scaler, train, test, n_variables = prepare_data(dataset, n_lag, n_forecast, train_fraction, n_days, ignoredVariables)
+scaler, train, test, n_variables = prepare_data(dataset, n_lag, n_forecast, train_fraction, n_days, ignoredVariables, predictChange)
 
 print 'Lag:', n_lag
-print 'Forecast: ', n_forecast
+print 'Forecast:', n_forecast
+if predictChange:
+    print 'Forecast type: Relative'
+else:
+    print 'Forecast type: Absolute'
 
 # fit model
-model = fit_lstm(train, n_lag, n_forecast, n_batch, n_epochs, n_neurons, lstmStateful)
+model = fit_lstm(train, n_lag, n_forecast, n_batch, n_epochs, n_neurons, lstmStateful, validate, test)
 
 # make forecast
 forecasts = make_forecasts(model, n_batch, test, n_lag, n_forecast)
@@ -310,10 +365,14 @@ forecasts = make_forecasts(model, n_batch, test, n_lag, n_forecast)
 # actual values
 actual = [row[-n_forecast:] for row in test]
 
+# actual values at t-1
+i0 = (n_lag - 1) * n_variables
+baseline = [row[i0] for row in test]
+
 # inverse transform
 print 'Inverse transform of forecast and test data ...'
-forecasts = inverse_transform(forecasts, scaler, n_variables)
-actual = inverse_transform(actual, scaler, n_variables)
+forecasts = inverse_transform(forecasts, scaler, n_variables, predictChange, baseline)
+actual = inverse_transform(actual, scaler, n_variables, predictChange, baseline)
 
 # evaluate forecast quality
 print 'Performance LSTM [Persistence]:'

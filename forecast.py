@@ -144,16 +144,24 @@ def prepare_data(series, n_in, n_out, train_frac, n_days, ignoredVar, predictCha
 #-----------------------------------------------------------------------
 # fit an LSTM network to training data
 #-----------------------------------------------------------------------
-def fit_lstm(train, n_in, n_out, n_batch, nb_epoch, n_neurons, lstmStateful, validate, test):
+def fit_lstm(train, n_out, n_batch, nb_epoch, n_neurons, lstmStateful, validate, test, cheat):
 
     # split into input (X) and output (y)
 
     # train
-    X, y = train[:, :-n_out], train[:, -n_out:]
+    y = train[:, -n_out:]
+    if cheat:
+        X = train 
+    else:
+        X = train[:, :-n_out] 
     X = X.reshape(X.shape[0], 1, X.shape[1])
 
     # test
-    X_test, y_test = test[:, :-n_out], test[:, -n_out:]
+    y_test = test[:, -n_out:]
+    if cheat:
+        X_test = test
+    else:
+        X_test = test[:, :-n_out]
     X_test = X_test.reshape(X_test.shape[0], 1, X_test.shape[1])
 
     # stacked layers?
@@ -230,12 +238,15 @@ def make_single_forecast(model, X, n_batch):
 #-----------------------------------------------------------------------
 # make forecasts for entire test set
 #-----------------------------------------------------------------------
-def make_forecasts(model, n_batch, test, n_in, n_out):
+def make_forecasts(model, n_batch, test, n_in, n_out, cheat):
     print 'Forecasting test data ...'
     forecasts = list()
     for i in range(len(test)):
         # select input
-        X = test[i, :-n_out]
+        if cheat:
+            X = test[i, :]
+        else:
+            X = test[i, :-n_out]
         # make forecast
         forecast = make_single_forecast(model, X, n_batch)
         # store the forecast
@@ -330,15 +341,16 @@ def plot_forecasts(series, forecasts, n_test):
 # configure
 n_lag = 24
 n_forecast = 24
-n_epochs = 500
+n_epochs = 200
 n_batch = 100
 lstmStateful = False
 n_neurons = [12]
 train_fraction = 0.33
 n_days = -1   # -1 will process entire data set
 ignoredVariables = [1, 4, 5, 6, 7]  # numbering begins with zero: 0,1,2...etc
-predictChange = True
+predictChange = False
 validate = True
+cheat = False # values to be predicted are included in input
 
 
 # load dataset
@@ -355,12 +367,14 @@ if predictChange:
     print 'Forecast type: Relative'
 else:
     print 'Forecast type: Absolute'
+if cheat:
+    print 'OBS: CHEATING ENABLED!'
 
 # fit model
-model = fit_lstm(train, n_lag, n_forecast, n_batch, n_epochs, n_neurons, lstmStateful, validate, test)
+model = fit_lstm(train, n_forecast, n_batch, n_epochs, n_neurons, lstmStateful, validate, test, cheat)
 
 # make forecast
-forecasts = make_forecasts(model, n_batch, test, n_lag, n_forecast)
+forecasts = make_forecasts(model, n_batch, test, n_lag, n_forecast, cheat)
 
 # actual values
 actual = [row[-n_forecast:] for row in test]

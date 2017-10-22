@@ -1,8 +1,7 @@
 
 from pandas import read_csv
-
 import subroutines as sub
-
+import datetime
 
 
 # configure
@@ -19,27 +18,56 @@ predictChange = False
 validate = True
 cheat = True # values to be predicted are included in input
 datafile = '../../heat_load_weather_calendar.csv' # OBS: Value to be forecasted must be in column 0
+now = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S") # current date and time
+nowPretty = datetime.datetime.now().strftime("%Y-%m-%d, %H:%M:%S")
+logfile = open('output/log'+now+'.txt', 'w')
 
+
+# save configuration data
+line = '# ' + nowPretty
+logfile.write(line + '\n')
+line = '# Input: ' + datafile
+logfile.write(line + '\n')
 
 # load dataset
 dataset = read_csv(datafile, header=0, index_col=0)
 
 # prepare data
-scaler, train, test, n_variables = sub.prepare_data(dataset, n_lag, n_forecast, train_fraction, n_days, ignoredVariables, predictChange)
+scaler, train, test, n_variables = sub.prepare_data(dataset, n_lag, n_forecast, train_fraction, n_days, ignoredVariables, predictChange, logfile)
 
-print 'Lag:', n_lag
-print 'Forecast:', n_forecast
+# save more configuration data
+line = '# Lag: ' + str(n_lag)
+logfile.write(line + '\n')
+line = '# Forecast: ' + str(n_forecast)
+logfile.write(line + '\n')
+line = '# Forecast type: '
 if predictChange:
-    print 'Forecast type: Relative'
+    line += 'Relative'
 else:
-    print 'Forecast type: Absolute'
+    line += 'Absolute'
+logfile.write(line + '\n')
+line = '# Cheating: '
 if cheat:
-    print 'OBS: CHEATING ENABLED!'
+    line += 'ENABLED'
+else:
+    line += 'DISABLED'
+logfile.write(line + '\n')
+line = '# Network: [' + ', '.join(str(x) for x in n_neurons) + ']'
+logfile.write(line + '\n')
+line = '# Batch size: ' + str(n_batch)
+logfile.write(line + '\n')
+line = '# Validation: '
+if validate:
+    line += 'ENABLED'
+else:
+    line += 'DISABLED'
 
 # fit model
-model = sub.fit_lstm(train, n_forecast, n_batch, n_epochs, n_neurons, lstmStateful, validate, test, cheat)
+lossfig = 'output/lossHistory_' + now + '.png'
+model, timePerEpoch = sub.fit_lstm(train, n_forecast, n_batch, n_epochs, n_neurons, lstmStateful, validate, test, cheat, lossfig)
 
 # make forecast
+print 'Forecasting ...'
 forecasts = sub.make_forecasts(model, n_batch, test, n_lag, n_forecast, cheat)
 
 # actual values
@@ -50,14 +78,27 @@ i0 = (n_lag - 1) * n_variables
 baseline = [row[i0] for row in test]
 
 # inverse transform
-print 'Inverse transform of forecast and test data ...'
+print 'Inverse transform ...'
 forecasts = sub.inverse_transform(forecasts, scaler, n_variables, predictChange, baseline)
 actual = sub.inverse_transform(actual, scaler, n_variables, predictChange, baseline)
 
 # evaluate forecast quality
-print 'Performance LSTM [Persistence]:'
-sub.evaluate_forecasts(actual, forecasts, n_forecast)
+print 'Calculating RMSE ...'
+sub.evaluate_forecasts(actual, forecasts, n_forecast, logfile)
 
 # plot forecasts
-sub.plot_forecasts(dataset, forecasts, test.shape[0])
+forecastfig = 'output/forecast_' + now + '.png'
+sub.plot_forecasts(dataset, forecasts, test.shape[0], forecastfig)
+
+
+# save more configuration data
+line = "# %.1f seconds/epoch" % timePerEpoch
+logfile.write(line + '\n')
+line = '# Loss history plot: ' + lossfig
+logfile.write(line + '\n')
+line = '# LSTM forecast plot: ' + forecastfig
+logfile.write(line + '\n')
+
+print 'Log file:', logfile.name
+logfile.close()
 

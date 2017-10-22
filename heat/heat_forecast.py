@@ -24,8 +24,7 @@ def run(inputfile, n_lag, n_forecast, n_neurons, n_epochs, n_batch, train_fracti
     now = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
     
     # open log file
-    logfile = open('output/log_'+today+'.txt', 'a')
-    logfile.write('\n\n# -----------------------------------------------\n')
+    logfile = open('output/log_'+now+'.txt', 'w+')
 
     # save configuration data
     nowPretty = datetime.datetime.now().strftime("%Y-%m-%d, %H:%M:%S")

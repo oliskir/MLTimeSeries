@@ -145,7 +145,7 @@ def prepare_data(series, n_in, n_out, train_frac, n_days, ignoredVar, predictCha
 #-----------------------------------------------------------------------
 # fit an LSTM network to training data
 #-----------------------------------------------------------------------
-def fit_lstm(train, n_out, n_batch, nb_epoch, n_neurons, lstmStateful, validate, test, cheat, figname):
+def fit_lstm(train, n_out, n_batch, nb_epoch, n_neurons, lstmStateful, validate, test, cheat, figname, verbosity):
 
     # split into input (X) and output (y)
 
@@ -202,7 +202,7 @@ def fit_lstm(train, n_out, n_batch, nb_epoch, n_neurons, lstmStateful, validate,
     if validate:
         history = model.fit(X, y, epochs=nb_epoch, batch_size=n_batch, validation_data=(X_test, y_test), verbose=2, shuffle=False)
     else:
-        history = model.fit(X, y, epochs=nb_epoch, batch_size=n_batch, verbose=2, shuffle=False)
+        history = model.fit(X, y, epochs=nb_epoch, batch_size=n_batch, verbose=verbosity, shuffle=False)
 
     # plot history
     ax = pyplot.plot(history.history['loss'], label='train')
@@ -295,7 +295,6 @@ def inverse_transform(normalized, scaler, n_var, predictChange, baseline):
 #-----------------------------------------------------------------------
 def evaluate_forecasts(test, forecasts, n_out, logfile):
 
-    logfile.write('#\n')
     line = '# t+i  RMSE(LSTM)  RMSE(Persistence)'
     logfile.write(line + '\n')
 
@@ -312,7 +311,6 @@ def evaluate_forecasts(test, forecasts, n_out, logfile):
 
         line = ' %d  %f  %f' % ((i+1), rmse_lstm, rmse_persist)
         logfile.write(line + '\n')
-    logfile.write('#\n')
 
 
 #-----------------------------------------------------------------------

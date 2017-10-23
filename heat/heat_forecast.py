@@ -24,7 +24,7 @@ def run(inputfile, n_lag, n_forecast, n_neurons, n_epochs, n_batch, train_fracti
     now = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
     
     # open log file
-    logfile = open('output/log_'+now+'.txt', 'w+')
+    logfile = open('output/'+now+'.log', 'w+')
 
     # save configuration data
     nowPretty = datetime.datetime.now().strftime("%Y-%m-%d, %H:%M:%S")
@@ -94,8 +94,11 @@ def run(inputfile, n_lag, n_forecast, n_neurons, n_epochs, n_batch, train_fracti
 
     # plot forecasts
     forecastfig = 'output/forecast_' + now + '.png'
-    sub.plot_forecasts(dataset, forecasts, test.shape[0], forecastfig)
-
+###    sub.plot_forecasts(dataset, forecasts, test.shape[0], forecastfig)
+    
+    # save data and forecasts to root file
+    rname = 'output/' + now + '.root'
+    sub.save_root_tree(dataset, forecasts, test.shape[0], rname)
 
     # save more configuration data
     line = "# %.1f seconds/epoch" % timePerEpoch
@@ -103,6 +106,8 @@ def run(inputfile, n_lag, n_forecast, n_neurons, n_epochs, n_batch, train_fracti
     line = '# Loss history plot: ' + lossfig
     logfile.write(line + '\n')
     line = '# LSTM forecast plot: ' + forecastfig
+    logfile.write(line + '\n')
+    line = '# Root file: ' + rname
     logfile.write(line + '\n')
 
     print 'Log file:', logfile.name

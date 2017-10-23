@@ -200,7 +200,7 @@ def fit_lstm(train, n_out, n_batch, nb_epoch, n_neurons, lstmStateful, validate,
     start_time = time.time()
     
     if validate:
-        history = model.fit(X, y, epochs=nb_epoch, batch_size=n_batch, validation_data=(X_test, y_test), verbose=2, shuffle=False)
+        history = model.fit(X, y, epochs=nb_epoch, batch_size=n_batch, validation_data=(X_test, y_test), verbose=verbosity, shuffle=False)
     else:
         history = model.fit(X, y, epochs=nb_epoch, batch_size=n_batch, verbose=verbosity, shuffle=False)
 

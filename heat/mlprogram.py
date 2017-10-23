@@ -93,7 +93,7 @@ def run(inputfile, n_lag, n_forecast, n_neurons, n_epochs, n_batch, train_fracti
     sub.evaluate_forecasts(actual, forecasts, n_forecast, logfile)
 
     # plot forecasts
-    forecastfig = 'output/forecast_' + now + '.png'
+###    forecastfig = 'output/forecast_' + now + '.png'
 ###    sub.plot_forecasts(dataset, forecasts, test.shape[0], forecastfig)
     
     # save data and forecasts to root file
@@ -105,8 +105,8 @@ def run(inputfile, n_lag, n_forecast, n_neurons, n_epochs, n_batch, train_fracti
     logfile.write(line + '\n')
     line = '# Loss history plot: ' + lossfig
     logfile.write(line + '\n')
-    line = '# LSTM forecast plot: ' + forecastfig
-    logfile.write(line + '\n')
+###    line = '# LSTM forecast plot: ' + forecastfig
+###    logfile.write(line + '\n')
     line = '# Root file: ' + rname
     logfile.write(line + '\n')
 

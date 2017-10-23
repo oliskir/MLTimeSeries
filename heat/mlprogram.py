@@ -10,7 +10,7 @@ def run(inputfile, n_lag, n_forecast, n_neurons, n_epochs, n_batch, train_fracti
     # configure
     lstmStateful = False
     n_days = -1   # -1 will process entire data set
-    ignoredVariables = [4, 5, 6, 7, 8, 9, 10]  # numbering begins with zero: 0,1,2...etc
+    ignoredVariables = [3, 4, 5, 6, 7, 8, 9, 10]
 
     # create output directory if necessary
     try: 

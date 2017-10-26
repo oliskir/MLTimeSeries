@@ -4,12 +4,7 @@ Machine learning approach to time-series forecasting
 Based on: 
 https://machinelearningmastery.com/multivariate-time-series-forecasting-lstms-keras/
 
-Execute scripts in this order:
-1) prepdata.py
-2) plotdata.py
-3) transformdata.py
-4) forecast.py
-
-Activate keras environment: source activate keras-test
-
-Run python script: python forecast.py
+Syntax:
+```terminal
+python main.py -n <neurons1>,<neurons2>,... -l <lag> -f <forecast> -e <epochs> -b <batch-size> -t <training-fraction> -v <verbosity> -i <input-file> -D -V -C
+```

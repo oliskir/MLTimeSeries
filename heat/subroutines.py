@@ -108,6 +108,8 @@ def prepare_data(series, n_in, n_out, train_frac, n_days, ignoredVar, predictCha
         l += list(reframed.columns[j+1:])
         l += list(reframed.columns[[j]])
         reframed = reframed.reindex_axis(l, axis=1)
+        
+###    print(reframed.head())
 
     # if predicting change, calculate deviation relative to prod(t).
     # (add 1 and divide by 2 to ensure that deviation is between 0 and 1)

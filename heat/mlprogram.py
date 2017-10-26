@@ -72,6 +72,11 @@ def run(inputfile, n_lag, n_forecast, n_neurons, n_epochs, n_batch, train_fracti
     lossfig = 'output/lossHistory_' + now + '.png'
     model, timePerEpoch = sub.fit_lstm(train, n_forecast, n_batch, n_epochs, n_neurons, lstmStateful, validate, test, cheat, lossfig, verbosity)
 
+###    # print as check that network has been correctly configured    
+###    print model.layers
+###    print model.inputs
+###    print model.outputs
+
     # make forecast
     print 'Forecasting ...'
     forecasts = sub.make_forecasts(model, n_batch, test, n_lag, n_forecast, cheat)

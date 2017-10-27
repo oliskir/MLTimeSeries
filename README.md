@@ -28,3 +28,15 @@ python main.py -n <neurons1>,<neurons2>,... -l <lag> -f <forecast> -e <epochs> -
 python main.py -n 16 -l 24 -f 24 -e 10000 -b 365 -t 0.3 -v 0 -i data.csv -C
 ```
 Two-layer LSTM network with 16 x 16 neurons. Forecast next 24 hours based on previous 24 hours. 1E4 epochs and batch size of 365 (1 year). Use 1/3 of the data set for training. Lowest possible verbosity level. The data file is called data.csv. Cheating is enabled. 
+
+## Output
+The program outputs (1) a .txt file with a summary of the settings and the forecast quality, (2) a .root file with the complete series of data points and forecasted values, and (3) a .png figure showing the loss history. The files are all tagged with the current date and time and saved to the subfolder output/.
+
+## Prerequisites
+- Python 2.7
+- numpy
+- Keras deep learning library with Theano backend
+- ROOT
+- rootpy
+
+ROOT and rootpy are only needed to produce the .root output file, and hence are not essential.

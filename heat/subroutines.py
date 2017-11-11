@@ -56,16 +56,17 @@ def series_to_supervised(data, hours, varname, n_in=1, n_out=1, n_lead=0, t0_for
     if dropnan:
         agg.dropna(inplace=True)
     # if we want to make 1 daily forecast at a specific hour 
-    # (instead of hourly forecasts) we only keep 1 in every 24 rows.
-#    if (t0_forecast >= 0):
-#        agg.drop(agg.index[0], inplace=True) 
-#        df[df.hour != t0_forecast]
+    # (instead of hourly forecasts) we have to select the relevant rows
+    agg0 = agg
+    if (t0_forecast >= 0):
+        t0 = t0_forecast - n_lead
+        if (t0 < 0): 
+            t0 += 24
+        agg0 = agg[agg.hour == t0]
     # drop hour column again
-    agg.drop('hour', axis=1, inplace=True)   
-
-    print agg
+    agg0 = agg0.drop('hour', 1)
         
-    return agg
+    return agg0
 
  
 #-----------------------------------------------------------------------
@@ -82,9 +83,8 @@ def prepare_data(series, n_in, n_out, n_lead, t0_forecast, train_frac, n_days, i
     # number of data points
     N = values.shape[0]
     
-    # hours
+    # hour column
     hours = values[:, 8]
-    print hours
 
     # ensure all data is float
     values = values.astype('float32')
@@ -127,7 +127,7 @@ def prepare_data(series, n_in, n_out, n_lead, t0_forecast, train_frac, n_days, i
         l += list(reframed.columns[[j]])
         reframed = reframed.reindex_axis(l, axis=1)
         
-    print(reframed.head())
+##    print(reframed.head())
 
     # if predicting change, calculate deviation relative to prod(t).
     # (add 1 and divide by 2 to ensure that deviation is between 0 and 1)
@@ -142,10 +142,10 @@ def prepare_data(series, n_in, n_out, n_lead, t0_forecast, train_frac, n_days, i
 
     # split into train and test sets
     values = reframed.values
-    n_train_hours = int(values.shape[0] * train_frac)
+    n_train_samples = int(values.shape[0] * train_frac)
 
-    train = values[:n_train_hours, :]  # select first n_train_hours entries
-    test = values[n_train_hours:, :]   # select remaining entries
+    train = values[:n_train_samples, :]  # select first n_train_samples entries
+    test = values[n_train_samples:, :]   # select remaining entries
 
     # save config data to file
     line = '# ' + str(N) + ' time steps'
@@ -154,9 +154,9 @@ def prepare_data(series, n_in, n_out, n_lead, t0_forecast, train_frac, n_days, i
     logfile.write(line + '\n')
     line = '# Variable to be forecasted: ' + str(variableNames[0])    
     logfile.write(line + '\n')
-    line = '# Training hours: ' + str(train.shape[0])        
+    line = '# Training samples: ' + str(train.shape[0])        
     logfile.write(line + '\n')
-    line = '# Test hours: ' + str(test.shape[0])        
+    line = '# Test samples: ' + str(test.shape[0])        
     logfile.write(line + '\n')
 
     return scaler, train, test, n_var

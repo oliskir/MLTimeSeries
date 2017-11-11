@@ -5,11 +5,11 @@ import datetime
 import os
 
 
-def run(inputfile, n_lag, n_forecast, n_neurons, n_epochs, n_batch, train_fraction, predictChange, validate, cheat, verbosity):
+def run(inputfile, n_lag, n_forecast, n_lead, t0_forecast_window, n_neurons, n_epochs, n_batch, train_fraction, predictChange, validate, cheat, verbosity):
 
     # configure
     lstmStateful = False
-    n_days = -1   # -1 will process entire data set
+    n_days = -1   # set to -1 to process entire data set
     ignoredVariables = [3, 4, 5, 6, 7, 8, 9, 10]
 
     # create output directory if necessary

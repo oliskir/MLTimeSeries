@@ -5,7 +5,7 @@ import datetime
 import os
 import rootoutput as ro
 
-def run(inputfile, n_lag, n_forecast, n_lead, t0_forecast_window, n_neurons, n_epochs, n_batch, train_fraction, predictChange, validate, cheat, verbosity):
+def run(inputfile, n_lag, n_forecast, n_lead, t0_forecast, n_neurons, n_epochs, n_batch, train_fraction, predictChange, validate, cheat, verbosity):
 
     # configure
     lstmStateful = False
@@ -37,12 +37,16 @@ def run(inputfile, n_lag, n_forecast, n_lead, t0_forecast_window, n_neurons, n_e
     dataset = read_csv(inputfile, header=0, index_col=0)
 
     # prepare data
-    scaler, train, test, n_variables = sub.prepare_data(dataset, n_lag, n_forecast, train_fraction, n_days, ignoredVariables, predictChange, logfile)
+    scaler, train, test, n_variables = sub.prepare_data(dataset, n_lag, n_forecast, n_lead, train_fraction, n_days, ignoredVariables, predictChange, logfile)
 
     # save more configuration data
     line = '# Lag: ' + str(n_lag)
     logfile.write(line + '\n')
     line = '# Forecast: ' + str(n_forecast)
+    logfile.write(line + '\n')
+    line = '# Lead: ' + str(n_lead)
+    logfile.write(line + '\n')
+    line = '# Forecast start: ' + str(t0_forecast)
     logfile.write(line + '\n')
     line = '# Forecast type: '
     if predictChange:

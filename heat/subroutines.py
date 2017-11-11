@@ -20,7 +20,7 @@ import csv
 #-----------------------------------------------------------------------
 # convert time series into supervised learning problem
 #-----------------------------------------------------------------------
-def series_to_supervised(data, varname, n_in=1, n_out=1, dropnan=True):
+def series_to_supervised(data, varname, n_in=1, n_out=1, n_lead=0, dropnan=True):
 	"""
 	Frame a time series as a supervised learning dataset.
 	Arguments:
@@ -38,8 +38,8 @@ def series_to_supervised(data, varname, n_in=1, n_out=1, dropnan=True):
 	for i in range(n_in, 0, -1):
 		cols.append(df.shift(i))
 		names += [('%s(t-%d)' % (varname[j], i)) for j in range(n_vars)]
-	# forecast sequence (t, t+1, ... t+n)
-	for i in range(0, n_out):
+	# forecast sequence (t+lead, t+lead+1, ... t+lead+n)
+	for i in range(n_lead, n_lead + n_out):
 		cols.append(df.shift(-i))
 		if i == 0:
 			names += [('%s(t)' % varname[j]) for j in range(n_vars)]
@@ -57,7 +57,7 @@ def series_to_supervised(data, varname, n_in=1, n_out=1, dropnan=True):
 #-----------------------------------------------------------------------
 # transform series into train and test sets for supervised learning
 #-----------------------------------------------------------------------
-def prepare_data(series, n_in, n_out, train_frac, n_days, ignoredVar, predictChange, logfile):
+def prepare_data(series, n_in, n_out, n_lead, train_frac, n_days, ignoredVar, predictChange, logfile):
 
     # extract raw values
     values = series.values
@@ -98,7 +98,7 @@ def prepare_data(series, n_in, n_out, train_frac, n_days, ignoredVar, predictCha
     scaled = scaler.fit_transform(values)
 
     # frame as supervised learning
-    reframed = series_to_supervised(scaled, variableNames, n_in, n_out)
+    reframed = series_to_supervised(scaled, variableNames, n_in, n_out, n_lead)
 
     # rearrange columns so the columns we want to predict are at the end
     l = []
@@ -109,7 +109,7 @@ def prepare_data(series, n_in, n_out, train_frac, n_days, ignoredVar, predictCha
         l += list(reframed.columns[[j]])
         reframed = reframed.reindex_axis(l, axis=1)
         
-###    print(reframed.head())
+    print(reframed.head())
 
     # if predicting change, calculate deviation relative to prod(t).
     # (add 1 and divide by 2 to ensure that deviation is between 0 and 1)

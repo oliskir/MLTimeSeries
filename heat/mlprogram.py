@@ -3,7 +3,7 @@ from pandas import read_csv
 import subroutines as sub
 import datetime
 import os
-
+import rootoutput as ro
 
 def run(inputfile, n_lag, n_forecast, n_lead, t0_forecast_window, n_neurons, n_epochs, n_batch, train_fraction, predictChange, validate, cheat, verbosity):
 
@@ -103,7 +103,7 @@ def run(inputfile, n_lag, n_forecast, n_lead, t0_forecast_window, n_neurons, n_e
     
     # save data and forecasts to root file
     rname = 'output/' + now + '.root'
-    sub.save_root_tree(dataset, forecasts, test.shape[0], rname)
+    ro.save_root_tree(dataset, forecasts, test.shape[0], rname)
 
     # save more configuration data
     line = "# %.1f seconds/epoch" % timePerEpoch

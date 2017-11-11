@@ -10,7 +10,7 @@ def main(argv):
     n_lag = 24
     n_forecast = 24
     n_lead = 14
-    t0_forecast = 0
+    t0_forecast = 0  # set to -1 to make hourly forecasts
     n_neurons = [40]
     n_epochs = 2
     n_batch = 365

@@ -37,7 +37,7 @@ def run(inputfile, n_lag, n_forecast, n_lead, t0_forecast, n_neurons, n_epochs, 
     dataset = read_csv(inputfile, header=0, index_col=0)
 
     # prepare data
-    scaler, train, test, n_variables = sub.prepare_data(dataset, n_lag, n_forecast, n_lead, train_fraction, n_days, ignoredVariables, predictChange, logfile)
+    scaler, train, test, n_variables = sub.prepare_data(dataset, n_lag, n_forecast, n_lead, t0_forecast, train_fraction, n_days, ignoredVariables, predictChange, logfile)
 
     # save more configuration data
     line = '# Lag: ' + str(n_lag)

@@ -1,7 +1,7 @@
 
 from pandas import DataFrame
 from pandas import concat
-from pandas import read_csv
+from pandas import to_datetime
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error
@@ -20,44 +20,58 @@ import csv
 #-----------------------------------------------------------------------
 # convert time series into supervised learning problem
 #-----------------------------------------------------------------------
-def series_to_supervised(data, varname, n_in=1, n_out=1, n_lead=0, dropnan=True):
-	"""
-	Frame a time series as a supervised learning dataset.
-	Arguments:
-		data: Sequence of observations as a list or NumPy array.
-		n_in: Number of lag observations as input (X).
-		n_out: Number of observations as output (y).
-		dropnan: Boolean whether or not to drop rows with NaN values.
-	Returns:
-		Pandas DataFrame of series framed for supervised learning.
-	"""
-	n_vars = 1 if type(data) is list else data.shape[1]
-	df = DataFrame(data)
-	cols, names = list(), list()
-	# input sequence (t-n, ... t-1)
-	for i in range(n_in, 0, -1):
-		cols.append(df.shift(i))
-		names += [('%s(t-%d)' % (varname[j], i)) for j in range(n_vars)]
-	# forecast sequence (t+lead, t+lead+1, ... t+lead+n)
-	for i in range(n_lead, n_lead + n_out):
-		cols.append(df.shift(-i))
-		if i == 0:
-			names += [('%s(t)' % varname[j]) for j in range(n_vars)]
-		else:
-			names += [('%s(t+%d)' % (varname[j], i)) for j in range(n_vars)]
-	# put it all together
-	agg = concat(cols, axis=1)
-	agg.columns = names
-	# drop rows with NaN values
-	if dropnan:
-		agg.dropna(inplace=True)
-	return agg
+def series_to_supervised(data, hours, varname, n_in=1, n_out=1, n_lead=0, t0_forecast=-1, dropnan=True):
+    """
+    Frame a time series as a supervised learning dataset.
+    Arguments:
+	    data: Sequence of observations as a list or NumPy array.
+	    n_in: Number of lag observations as input (X).
+	    n_out: Number of observations as output (y).
+	    dropnan: Boolean whether or not to drop rows with NaN values.
+    Returns:
+	    Pandas DataFrame of series framed for supervised learning.
+    """
+    n_vars = 1 if type(data) is list else data.shape[1]
+    df = DataFrame(data)
+    cols, names = list(), list()
+    # input sequence (t-n, ... t-1)
+    for i in range(n_in, 0, -1):
+        cols.append(df.shift(i))
+        names += [('%s(t-%d)' % (varname[j], i)) for j in range(n_vars)]
+    # forecast sequence (t+lead, t+lead+1, ... t+lead+n)
+    for i in range(n_lead, n_lead + n_out):
+        cols.append(df.shift(-i))
+        if i == 0:
+            names += [('%s(t)' % varname[j]) for j in range(n_vars)]
+        else:
+            names += [('%s(t+%d)' % (varname[j], i)) for j in range(n_vars)]	
+    # put it all together
+    agg = concat(cols, axis=1)
+    agg.columns = names
+    # add hour column
+    dfh = DataFrame()
+    dfh['hour'] = hours
+    agg['hour'] = dfh.shift(1).values
+    # drop rows with NaN values
+    if dropnan:
+        agg.dropna(inplace=True)
+    # if we want to make 1 daily forecast at a specific hour 
+    # (instead of hourly forecasts) we only keep 1 in every 24 rows.
+#    if (t0_forecast >= 0):
+#        agg.drop(agg.index[0], inplace=True) 
+#        df[df.hour != t0_forecast]
+    # drop hour column again
+    agg.drop('hour', axis=1, inplace=True)   
+
+    print agg
+        
+    return agg
 
  
 #-----------------------------------------------------------------------
 # transform series into train and test sets for supervised learning
 #-----------------------------------------------------------------------
-def prepare_data(series, n_in, n_out, n_lead, train_frac, n_days, ignoredVar, predictChange, logfile):
+def prepare_data(series, n_in, n_out, n_lead, t0_forecast, train_frac, n_days, ignoredVar, predictChange, logfile):
 
     # extract raw values
     values = series.values
@@ -67,6 +81,10 @@ def prepare_data(series, n_in, n_out, n_lead, train_frac, n_days, ignoredVar, pr
 
     # number of data points
     N = values.shape[0]
+    
+    # hours
+    hours = values[:, 8]
+    print hours
 
     # ensure all data is float
     values = values.astype('float32')
@@ -98,7 +116,7 @@ def prepare_data(series, n_in, n_out, n_lead, train_frac, n_days, ignoredVar, pr
     scaled = scaler.fit_transform(values)
 
     # frame as supervised learning
-    reframed = series_to_supervised(scaled, variableNames, n_in, n_out, n_lead)
+    reframed = series_to_supervised(scaled, hours, variableNames, n_in, n_out, n_lead, t0_forecast)
 
     # rearrange columns so the columns we want to predict are at the end
     l = []

@@ -57,12 +57,10 @@ def series_to_supervised(data, hours, varname, n_in=1, n_out=1, n_lead=0, t0_for
         agg.dropna(inplace=True)
     # if we want to make 1 daily forecast at a specific hour 
     # (instead of hourly forecasts) we have to select the relevant rows
-    agg0 = agg
-    if (t0_forecast >= 0):
-        t0 = t0_forecast - n_lead
-        if (t0 < 0): 
-            t0 += 24
-        agg0 = agg[agg.hour == t0]
+    t0 = t0_forecast - n_lead - 1
+    if (t0 < 0): 
+        t0 += 24
+    agg0 = agg[agg.hour == t0]
     # drop hour column again
     agg0 = agg0.drop('hour', 1)
         
@@ -127,7 +125,7 @@ def prepare_data(series, n_in, n_out, n_lead, t0_forecast, train_frac, n_days, i
         l += list(reframed.columns[[j]])
         reframed = reframed.reindex_axis(l, axis=1)
         
-##    print(reframed.head())
+###    print(reframed.head())
 
     # if predicting change, calculate deviation relative to prod(t).
     # (add 1 and divide by 2 to ensure that deviation is between 0 and 1)
@@ -144,8 +142,13 @@ def prepare_data(series, n_in, n_out, n_lead, t0_forecast, train_frac, n_days, i
     values = reframed.values
     n_train_samples = int(values.shape[0] * train_frac)
 
-    train = values[:n_train_samples, :]  # select first n_train_samples entries
-    test = values[n_train_samples:, :]   # select remaining entries
+###    train = values[:n_train_samples, :]  # select first n_train_samples entries
+###    test = values[n_train_samples:, :]   # select remaining entries
+###    test_index = reframed.index[n_train_samples:]
+
+    train = values[n_train_samples:, :]  # select first n_train_samples entries
+    test = values[:n_train_samples, :]   # select remaining entries
+    test_index = reframed.index[:n_train_samples]
 
     # save config data to file
     line = '# ' + str(N) + ' time steps'
@@ -159,7 +162,7 @@ def prepare_data(series, n_in, n_out, n_lead, t0_forecast, train_frac, n_days, i
     line = '# Test samples: ' + str(test.shape[0])        
     logfile.write(line + '\n')
 
-    return scaler, train, test, n_var
+    return scaler, train, test, test_index, n_var
 
 
 #-----------------------------------------------------------------------
@@ -331,41 +334,3 @@ def evaluate_forecasts(test, forecasts, n_out, logfile):
 
         line = ' %d  %f  %f' % ((i+1), rmse_lstm, rmse_persist)
         logfile.write(line + '\n')
-
-
-#-----------------------------------------------------------------------
-# plot the forecasts in the context of the original dataset
-#-----------------------------------------------------------------------
-def plot_forecasts(series, forecasts, n_test, figname):
-    # plot the entire dataset in blue
-    pyplot.plot(series.values[:, 0], label='data')
-    # plot the forecasts in red
-    for i in range(len(forecasts[0])):
-        if (i > 2) and (i < len(forecasts[0])-1): 
-            continue
-                    
-        lab = 't+' + str(i+1)
-        col = 'red'
-        if i == 0: 
-            col = 'black'
-        elif i == 1: 
-            col = 'green'
-        elif i == 2: 
-            col = 'orange'
-        
-        off_s = len(series) - n_test - len(forecasts[0]) + i + 1
-        off_e = off_s + n_test
-        xaxis = [x for x in range(off_s, off_e)]
-        yaxis = [row[i] for row in forecasts]
-        yaxis = yaxis[:len(xaxis)]
-        pyplot.plot(xaxis, yaxis, label=lab, color=col)
-
-    # show the plot
-    pyplot.legend()
-    pyplot.xlabel('Time (hours)')
-    pyplot.ylabel('Heat production (MW)')
-    pyplot.title('LSTM Forecast')
-###    pyplot.show()
-    pyplot.savefig(figname, bbox_inches='tight')
-    pyplot.clf()
-    

@@ -1,10 +1,15 @@
 
 from pandas import read_csv
 import subroutines as sub
-import datetime
+import datetime as dt
 import os
 import rootoutput as ro
 
+
+def parse_dates(x):
+    return dt.datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
+    
+    
 def run(inputfile, n_lag, n_forecast, n_lead, t0_forecast, n_neurons, n_epochs, n_batch, train_fraction, predictChange, validate, cheat, verbosity):
 
     # configure
@@ -20,24 +25,28 @@ def run(inputfile, n_lag, n_forecast, n_lead, t0_forecast, n_neurons, n_epochs, 
             raise
         
     # current date and time
-    today = datetime.datetime.now().strftime("%Y-%m-%d")
-    now = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
+    today = dt.datetime.now().strftime("%Y-%m-%d")
+    now = dt.datetime.now().strftime("%Y-%m-%d_%H%M%S")
     
     # open log file
     logfile = open('output/'+now+'.log', 'w+')
 
     # save configuration data
-    nowPretty = datetime.datetime.now().strftime("%Y-%m-%d, %H:%M:%S")
+    nowPretty = dt.datetime.now().strftime("%Y-%m-%d, %H:%M:%S")
     line = '# ' + nowPretty
     logfile.write(line + '\n')
     line = '# Input: ' + inputfile
     logfile.write(line + '\n')
 
     # load dataset
-    dataset = read_csv(inputfile, header=0, index_col=0)
+###    dataset = read_csv(inputfile, header=0, index_col=0, parse_dates=[0], date_parser=parse_dates)
+    dataset = read_csv(inputfile, header=0, parse_dates=[0], date_parser=parse_dates)
+    
+    # drop date-time column
+    dataset_data = dataset.drop('datetime', 1)    
 
     # prepare data
-    scaler, train, test, n_variables = sub.prepare_data(dataset, n_lag, n_forecast, n_lead, t0_forecast, train_fraction, n_days, ignoredVariables, predictChange, logfile)
+    scaler, train, test, test_index, n_variables = sub.prepare_data(dataset_data, n_lag, n_forecast, n_lead, t0_forecast, train_fraction, n_days, ignoredVariables, predictChange, logfile)
 
     # save more configuration data
     line = '# Lag: ' + str(n_lag)
@@ -100,14 +109,10 @@ def run(inputfile, n_lag, n_forecast, n_lead, t0_forecast, n_neurons, n_epochs, 
     # evaluate forecast quality
     print 'Calculating RMSE ...'
     sub.evaluate_forecasts(actual, forecasts, n_forecast, logfile)
-
-    # plot forecasts
-###    forecastfig = 'output/forecast_' + now + '.png'
-###    sub.plot_forecasts(dataset, forecasts, test.shape[0], forecastfig)
     
     # save data and forecasts to root file
     rname = 'output/' + now + '.root'
-    ro.save_root_tree(dataset, forecasts, test.shape[0], rname)
+    ro.save_root_tree(dataset, forecasts, test, test_index, n_lead, rname)
 
     # save more configuration data
     line = "# %.1f seconds/epoch" % timePerEpoch

@@ -7,12 +7,12 @@ def main(argv):
 
     # default values
     inputfile = '../../heat_load_weather_calendar.csv'
-    n_lag = 24
+    n_lag = 34
     n_forecast = 24
-    n_lead = 13
+    t0_make = 10 
     t0_forecast = 0
-    n_neurons = [40]
-    n_epochs = 2
+    n_neurons = [100]
+    n_epochs = 1000
     n_batch = 365
     n_split = 5
     predictChange = False
@@ -22,15 +22,15 @@ def main(argv):
 
     # parse command-line args
     try:
-        opts, args = getopt.getopt(argv,"hDVCl:f:e:b:p:v:i:n:a:s:")
+        opts, args = getopt.getopt(argv,"hDVCi:f:e:b:p:v:d:n:m:s:")
     except getopt.GetoptError:
-        print 'main.py -n <neurons> -l <lag> -f <forecast-length> -a <lead> -s <forecast-start-hour> -e <epochs> -b <batch-size> -p <split> -v <verbosity> -i <input-file> -D -V -C'
+        print 'main.py -n <neurons> -l <input-length> -f <forecast-length> -m <forecast-make-hour> -s <forecast-start-hour> -e <epochs> -b <batch-size> -p <split> -v <verbosity> -d <data-file> -D -V -C'
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
-            print 'main.py -n <neurons> -l <lag> -f <forecast-length> -e <epochs> -b <batch-size> -t <training-fraction> -v <verbosity> -i <input-file> -D -V -C'
+            print 'main.py -n <neurons> -i <input-length> -f <forecast-length> -m <forecast-make-hour> -s <forecast-start-hour> -e <epochs> -b <batch-size> -p <split> -v <verbosity> -d <data-file> -D -V -C'
             sys.exit()
-        elif opt in ("-l"):
+        elif opt in ("-i"):
             n_lag = int(arg)
         elif opt in ("-f"):
             n_forecast = int(arg)
@@ -42,11 +42,11 @@ def main(argv):
             n_split = int(arg)
         elif opt in ("-v"):
             verbosity = int(arg)
-        elif opt in ("-a"):
-            n_lead = int(arg)
+        elif opt in ("-m"):
+            t0_make = int(arg)
         elif opt in ("-s"):
-            t0_forecast = int(arg)
-        elif opt in ("-i"):
+            t0_start = int(arg)
+        elif opt in ("-d"):
             inputfile = arg
         elif opt in ("-n"):
             layers = arg.split(",")
@@ -61,7 +61,7 @@ def main(argv):
             cheat = True
 
     # run program
-    ml.run(inputfile, n_lag, n_forecast, n_lead, t0_forecast, n_neurons, n_epochs, n_batch, n_split, predictChange, validate, cheat, verbosity)
+    ml.run(inputfile, n_lag, n_forecast, t0_make, t0_start, n_neurons, n_epochs, n_batch, n_split, predictChange, validate, cheat, verbosity)
 
 
 if __name__ == "__main__":

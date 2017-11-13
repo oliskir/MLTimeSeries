@@ -359,8 +359,6 @@ def evaluate_forecasts(actuals, forecasts, baseline, n_out, logfile):
         b = baseline[i]
         for i in range(n_out):
             persist.append(b)
-    
-    print len(actual), len(forecast), len(persist)
         
     rmse_lstm = sqrt(mean_squared_error(actual, forecast))
 
@@ -370,3 +368,5 @@ def evaluate_forecasts(actuals, forecasts, baseline, n_out, logfile):
     logfile.write(line + '\n')
     line = ' RMSE(persist): %f' % rmse_persist
     logfile.write(line + '\n')
+    
+    return rmse_lstm

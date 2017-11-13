@@ -10,9 +10,10 @@ def parse_dates(x):
     return dt.datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
     
     
-def run(inputfile, n_lag, n_forecast, n_lead, t0_forecast, n_neurons, n_epochs, n_batch, n_split, predictChange, validate, cheat, verbosity):
+def run(inputfile, n_lag, n_forecast, t0_make, t0_forecast, n_neurons, n_epochs, n_batch, n_split, predictChange, validate, cheat, verbosity):
 
     # configure
+    n_lead = 24 - t0_make + 1 + t0_forecast
     lstmStateful = False
     n_days = -1   # set to -1 to process entire data set
     ignoredVariables = [3, 4, 5, 6, 7, 8, 9, 10]
@@ -48,13 +49,13 @@ def run(inputfile, n_lag, n_forecast, n_lead, t0_forecast, n_neurons, n_epochs, 
     scaler, trains, tests, tests_index, n_variables = sub.prepare_data(dataset_data, n_lag, n_forecast, n_lead, t0_forecast, n_split, n_days, ignoredVariables, predictChange, logfile)
 
     # save more configuration data
-    line = ' Lag: ' + str(n_lag)
+    line = ' Input length: ' + str(n_lag) + 'hours'
     logfile.write(line + '\n')
-    line = ' Forecast: ' + str(n_forecast)
+    line = ' Make forecast: ' + str(t0_make) + ':00'
     logfile.write(line + '\n')
-    line = ' Lead: ' + str(n_lead)
+    line = ' Start forecast: ' + str(t0_forecast) + ':00'
     logfile.write(line + '\n')
-    line = ' Forecast start: ' + str(t0_forecast)
+    line = ' Forecast length: ' + str(n_forecast) + ' hours'
     logfile.write(line + '\n')
     line = ' Forecast type: '
     if predictChange:
@@ -70,7 +71,7 @@ def run(inputfile, n_lag, n_forecast, n_lead, t0_forecast, n_neurons, n_epochs, 
     logfile.write(line + '\n')
     line = ' Network: [' + ', '.join(str(x) for x in n_neurons) + ']'
     logfile.write(line + '\n')
-    line = ' Batch size: ' + str(n_batch)
+    line = ' Batch size: ' + str(n_batch) + ' days'
     logfile.write(line + '\n')
     line = ' Epochs: ' + str(n_epochs)
     logfile.write(line + '\n')
@@ -111,7 +112,7 @@ def run(inputfile, n_lag, n_forecast, n_lead, t0_forecast, n_neurons, n_epochs, 
 
     # evaluate forecast quality
     print 'Calculating RMSE ...'
-    sub.evaluate_forecasts(actual, forecasts, baseline, n_forecast, logfile)
+    RMSE = sub.evaluate_forecasts(actual, forecasts, baseline, n_forecast, logfile)
     
     # save data and forecasts to root file
     rname = 'output/' + now + '.root'
@@ -127,4 +128,8 @@ def run(inputfile, n_lag, n_forecast, n_lead, t0_forecast, n_neurons, n_epochs, 
 
     print 'Log file:', logfile.name
     logfile.close()
+
+    print 'RMSE: ',RMSE    
+        
+    return RMSE
 

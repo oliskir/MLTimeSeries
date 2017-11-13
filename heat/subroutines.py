@@ -1,10 +1,11 @@
 
 from pandas import DataFrame
 from pandas import concat
-from pandas import read_csv
+from pandas import to_datetime
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error
+from sklearn.model_selection import StratifiedKFold
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import LSTM
@@ -17,47 +18,61 @@ import time
 import csv
 
 
+
 #-----------------------------------------------------------------------
 # convert time series into supervised learning problem
 #-----------------------------------------------------------------------
-def series_to_supervised(data, varname, n_in=1, n_out=1, dropnan=True):
-	"""
-	Frame a time series as a supervised learning dataset.
-	Arguments:
-		data: Sequence of observations as a list or NumPy array.
-		n_in: Number of lag observations as input (X).
-		n_out: Number of observations as output (y).
-		dropnan: Boolean whether or not to drop rows with NaN values.
-	Returns:
-		Pandas DataFrame of series framed for supervised learning.
-	"""
-	n_vars = 1 if type(data) is list else data.shape[1]
-	df = DataFrame(data)
-	cols, names = list(), list()
-	# input sequence (t-n, ... t-1)
-	for i in range(n_in, 0, -1):
-		cols.append(df.shift(i))
-		names += [('%s(t-%d)' % (varname[j], i)) for j in range(n_vars)]
-	# forecast sequence (t, t+1, ... t+n)
-	for i in range(0, n_out):
-		cols.append(df.shift(-i))
-		if i == 0:
-			names += [('%s(t)' % varname[j]) for j in range(n_vars)]
-		else:
-			names += [('%s(t+%d)' % (varname[j], i)) for j in range(n_vars)]
-	# put it all together
-	agg = concat(cols, axis=1)
-	agg.columns = names
-	# drop rows with NaN values
-	if dropnan:
-		agg.dropna(inplace=True)
-	return agg
+def series_to_supervised(data, hours, varname, n_in=1, n_out=1, n_lead=0, t0_forecast=-1, dropnan=True):
+    """
+    Frame a time series as a supervised learning dataset.
+    Arguments:
+	    data: Sequence of observations as a list or NumPy array.
+	    n_in: Number of lag observations as input (X).
+	    n_out: Number of observations as output (y).
+	    dropnan: Boolean whether or not to drop rows with NaN values.
+    Returns:
+	    Pandas DataFrame of series framed for supervised learning.
+    """
+    n_vars = 1 if type(data) is list else data.shape[1]
+    df = DataFrame(data)
+    cols, names = list(), list()
+    # input sequence (t-n, ... t-1)
+    for i in range(n_in, 0, -1):
+        cols.append(df.shift(i))
+        names += [('%s(t-%d)' % (varname[j], i)) for j in range(n_vars)]
+    # forecast sequence (t+lead, t+lead+1, ... t+lead+n)
+    for i in range(n_lead, n_lead + n_out):
+        cols.append(df.shift(-i))
+        if i == 0:
+            names += [('%s(t)' % varname[j]) for j in range(n_vars)]
+        else:
+            names += [('%s(t+%d)' % (varname[j], i)) for j in range(n_vars)]	
+    # put it all together
+    agg = concat(cols, axis=1)
+    agg.columns = names
+    # add hour column
+    dfh = DataFrame()
+    dfh['hour'] = hours
+    agg['hour'] = dfh.shift(1).values
+    # drop rows with NaN values
+    if dropnan:
+        agg.dropna(inplace=True)
+    # if we want to make 1 daily forecast at a specific hour 
+    # (instead of hourly forecasts) we have to select the relevant rows
+    t0 = t0_forecast - n_lead - 1
+    if (t0 < 0): 
+        t0 += 24
+    agg0 = agg[agg.hour == t0]
+    # drop hour column again
+    agg0 = agg0.drop('hour', 1)
+        
+    return agg0
 
  
 #-----------------------------------------------------------------------
 # transform series into train and test sets for supervised learning
 #-----------------------------------------------------------------------
-def prepare_data(series, n_in, n_out, train_frac, n_days, ignoredVar, predictChange, logfile):
+def prepare_data(series, n_in, n_out, n_lead, t0_forecast, n_split, n_days, ignoredVar, predictChange, logfile):
 
     # extract raw values
     values = series.values
@@ -67,6 +82,9 @@ def prepare_data(series, n_in, n_out, train_frac, n_days, ignoredVar, predictCha
 
     # number of data points
     N = values.shape[0]
+    
+    # hour column
+    hours = values[:, 8]
 
     # ensure all data is float
     values = values.astype('float32')
@@ -95,10 +113,11 @@ def prepare_data(series, n_in, n_out, train_frac, n_days, ignoredVar, predictCha
 
     # normalize features (i.e., restrict values to be between 0 and 1)
     scaler = MinMaxScaler(feature_range=(0, 1))
+
     scaled = scaler.fit_transform(values)
 
     # frame as supervised learning
-    reframed = series_to_supervised(scaled, variableNames, n_in, n_out)
+    reframed = series_to_supervised(scaled, hours, variableNames, n_in, n_out, n_lead, t0_forecast)
 
     # rearrange columns so the columns we want to predict are at the end
     l = []
@@ -124,48 +143,62 @@ def prepare_data(series, n_in, n_out, train_frac, n_days, ignoredVar, predictCha
 
     # split into train and test sets
     values = reframed.values
-    n_train_hours = int(values.shape[0] * train_frac)
+    ss = int(values.shape[0] / n_split) # sample size
 
-    train = values[:n_train_hours, :]  # select first n_train_hours entries
-    test = values[n_train_hours:, :]   # select remaining entries
-
+    trains, tests, tests_index = list(), list(), list()
+    for i in range(n_split):
+        i1 = i*ss
+        i2 = (i+1)*ss - 1
+        if (i2 > values.shape[0] - 1):
+            i2 = values.shape[0] - 1
+        test = values[i1:i2, :]
+        tests.append(test)
+        test_index = reframed.index[i1:i2]
+        tests_index.append(test_index)
+        indices = [i for i in range(i1,i2)]
+        train = np.delete(values,indices,axis=0)
+        trains.append(train)
+        
     # save config data to file
-    line = '# ' + str(N) + ' time steps'
+    line = ' ' + str(N) + ' time steps'
     logfile.write(line + '\n')
-    line = '# Variables: ' + ', '.join(variableNames)
+    line = ' Variables: ' + ', '.join(variableNames)
     logfile.write(line + '\n')
-    line = '# Variable to be forecasted: ' + str(variableNames[0])    
+    line = ' Variable to be forecasted: ' + str(variableNames[0])    
     logfile.write(line + '\n')
-    line = '# Training hours: ' + str(train.shape[0])        
+    line = ' Training samples: ' + str(train.shape[0])        
     logfile.write(line + '\n')
-    line = '# Test hours: ' + str(test.shape[0])        
+    line = ' Test samples: ' + str(test.shape[0])        
     logfile.write(line + '\n')
 
-    return scaler, train, test, n_var
+    return scaler, trains, tests, tests_index, n_var
+
+
+#-----------------------------------------------------------------------
+# split into input (X) and output (y) columns
+#-----------------------------------------------------------------------
+def split_into_Xy(data, n, cheat):
+    
+    # train
+    y = data[:, -n:]
+    if cheat:
+        X = data 
+    else:
+        X = data[:, :-n] 
+    X = X.reshape(X.shape[0], 1, X.shape[1])
+    return X, y
 
 
 #-----------------------------------------------------------------------
 # fit an LSTM network to training data
 #-----------------------------------------------------------------------
-def fit_lstm(train, n_out, n_batch, nb_epoch, n_neurons, lstmStateful, validate, test, cheat, figname, verbosity):
+def fit_lstm(trains, n_out, n_batch, nb_epoch, n_neurons, lstmStateful, validate, tests, cheat, figname, verbosity):
+
+    train = trains[0]
+    test  = tests[0]
 
     # split into input (X) and output (y)
-
-    # train
-    y = train[:, -n_out:]
-    if cheat:
-        X = train 
-    else:
-        X = train[:, :-n_out] 
-    X = X.reshape(X.shape[0], 1, X.shape[1])
-
-    # test
-    y_test = test[:, -n_out:]
-    if cheat:
-        X_test = test
-    else:
-        X_test = test[:, :-n_out]
-    X_test = X_test.reshape(X_test.shape[0], 1, X_test.shape[1])
+    X, y = split_into_Xy(train, n_out, cheat)
 
     # stacked layers?
     returnSeq = False
@@ -200,16 +233,33 @@ def fit_lstm(train, n_out, n_batch, nb_epoch, n_neurons, lstmStateful, validate,
 ###        model.reset_states()
 
     start_time = time.time()
-    
-    if validate:
-        history = model.fit(X, y, epochs=nb_epoch, batch_size=n_batch, validation_data=(X_test, y_test), verbose=verbosity, shuffle=False)
-    else:
-        history = model.fit(X, y, epochs=nb_epoch, batch_size=n_batch, verbose=verbosity, shuffle=False)
+
+    # loop over splits
+    loss, val_loss = list(), list()
+    for i in range(len(trains)):
+
+        print 'Split:',i+1
+
+        train = trains[i]
+        test  = tests[i]        
+        
+        # split into input (X) and output (y)
+        X, y = split_into_Xy(train, n_out, cheat)
+        X_test, y_test = split_into_Xy(test, n_out, cheat)
+
+        if validate:
+            history = model.fit(X, y, epochs=nb_epoch, batch_size=n_batch, validation_data=(X_test, y_test), verbose=verbosity, shuffle=False)
+        else:
+            history = model.fit(X, y, epochs=nb_epoch, batch_size=n_batch, verbose=verbosity, shuffle=False)
+
+        loss.extend(history.history['loss'])
+        if validate:
+            val_loss.extend(history.history['val_loss'])
 
     # plot history
-    ax = pyplot.plot(history.history['loss'], label='train')
+    ax = pyplot.plot(loss, label='train')
     if validate:
-        pyplot.plot(history.history['val_loss'], label='test')
+        pyplot.plot(val_loss, label='test')
     pyplot.yscale('log')
     pyplot.legend()
     pyplot.grid(b=True, which='both')
@@ -244,18 +294,19 @@ def make_single_forecast(model, X, n_batch):
 #-----------------------------------------------------------------------
 # make forecasts for entire test set
 #-----------------------------------------------------------------------
-def make_forecasts(model, n_batch, test, n_in, n_out, cheat):
+def make_forecasts(model, n_batch, tests, n_in, n_out, cheat):
     forecasts = list()
-    for i in range(len(test)):
-        # select input
-        if cheat:
-            X = test[i, :]
-        else:
-            X = test[i, :-n_out]
-        # make forecast
-        forecast = make_single_forecast(model, X, n_batch)
-        # store the forecast
-        forecasts.append(forecast)		
+    for test in tests:
+        for i in range(len(test)):
+            # select input
+            if cheat:
+                X = test[i, :]
+            else:
+                X = test[i, :-n_out]
+            # make forecast
+            forecast = make_single_forecast(model, X, n_batch)
+            # store the forecast
+            forecasts.append(forecast)		
     return forecasts
 
 
@@ -293,98 +344,29 @@ def inverse_transform(normalized, scaler, n_var, predictChange, baseline):
 
 
 #-----------------------------------------------------------------------
-# evaluate the RMSE for each forecast time step
+# evaluate the RMSE for LSTM model and simple persistence model
 #-----------------------------------------------------------------------
-def evaluate_forecasts(test, forecasts, n_out, logfile):
+def evaluate_forecasts(actuals, forecasts, baseline, n_out, logfile):
 
-    line = '# t+i  RMSE(LSTM)  RMSE(Persistence)'
-    logfile.write(line + '\n')
-
+    # collapse into a 1d list
+    actual, forecast = list(), list()
     for i in range(n_out):
-        actual = [row[i] for row in test]
-        predicted = [forecast[i] for forecast in forecasts]
-        rmse_lstm = sqrt(mean_squared_error(actual, predicted))
+        actual.extend([row[i] for row in actuals])
+        forecast.extend([row[i] for row in forecasts])
 
-        persistence = [row[i] for row in test]
-        for j in range(i+1):
-            actual.pop(0)   # remove 1st item
-            persistence.pop() # remove last item
-        rmse_persist = sqrt(mean_squared_error(actual, persistence))
-
-        line = ' %d  %f  %f' % ((i+1), rmse_lstm, rmse_persist)
-        logfile.write(line + '\n')
-
-
-#-----------------------------------------------------------------------
-# plot the forecasts in the context of the original dataset
-#-----------------------------------------------------------------------
-def plot_forecasts(series, forecasts, n_test, figname):
-    # plot the entire dataset in blue
-    pyplot.plot(series.values[:, 0], label='data')
-    # plot the forecasts in red
-    for i in range(len(forecasts[0])):
-        if (i > 2) and (i < len(forecasts[0])-1): 
-            continue
-                    
-        lab = 't+' + str(i+1)
-        col = 'red'
-        if i == 0: 
-            col = 'black'
-        elif i == 1: 
-            col = 'green'
-        elif i == 2: 
-            col = 'orange'
+    persist = list()
+    for i in range(len(baseline)):
+        b = baseline[i]
+        for i in range(n_out):
+            persist.append(b)
         
-        off_s = len(series) - n_test - len(forecasts[0]) + i + 1
-        off_e = off_s + n_test
-        xaxis = [x for x in range(off_s, off_e)]
-        yaxis = [row[i] for row in forecasts]
-        yaxis = yaxis[:len(xaxis)]
-        pyplot.plot(xaxis, yaxis, label=lab, color=col)
+    rmse_lstm = sqrt(mean_squared_error(actual, forecast))
 
-    # show the plot
-    pyplot.legend()
-    pyplot.xlabel('Time (hours)')
-    pyplot.ylabel('Heat production (MW)')
-    pyplot.title('LSTM Forecast')
-###    pyplot.show()
-    pyplot.savefig(figname, bbox_inches='tight')
-    pyplot.clf()
-    
+    rmse_persist = sqrt(mean_squared_error(actual, persist))
 
-from ROOT import TTree, TFile
-from rootpy.tree import Tree, TreeModel, FloatCol, IntCol, FloatArrayCol
-from rootpy.io import root_open
+    line = ' RMSE(LSTM): %f' % rmse_lstm
+    logfile.write(line + '\n')
+    line = ' RMSE(persist): %f' % rmse_persist
+    logfile.write(line + '\n')
     
-#-----------------------------------------------------------------------
-# save the data series and the forecasts to a ROOT TTree
-#-----------------------------------------------------------------------
-def save_root_tree(series, forecasts, n_test, fname):
-    # number of time steps that we are forecasting
-    mulmax = len(forecasts[0])
-    # open ROOT file
-    f = root_open(fname, "recreate")
-    # define the model
-    class Event(TreeModel):
-        data = FloatCol()
-        forecast = FloatArrayCol(mulmax)
-    # create tree
-    t = Tree("heat", model=Event)
-    # power production time series
-    s = series.values[:, 0]
-    # start and end hour of each forecast
-    start, stop = [], []
-    for i in range(mulmax):
-        start.append(len(s) - n_test - mulmax + i + 1)
-        stop.append(start[i] + n_test - 1)
-    # loop over all data  
-    for n in range(len(s)):
-        t.data = s[n]
-        # loop over forecasts            
-        for i in range(mulmax):
-            if (n >= start[i]) and (n <= stop[i]):
-                j = n - start[i]
-                t.forecast[i] = forecasts[j][i]
-        t.fill()
-    t.write()
-    f.close()
+    return rmse_lstm

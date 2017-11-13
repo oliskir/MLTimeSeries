@@ -1,5 +1,23 @@
 
+#include <sys/types.h>  // For stat().
+#include <sys/stat.h>   // For stat().
+
+void createDir(string dir)
+{
+    struct stat sb;
+    if (!(stat(dir.c_str(), &sb) == 0 && S_ISDIR(sb.st_mode))) 
+    {
+        // create the directory
+        string makedir = "mkdir -p " + dir;
+        system(makedir.c_str());
+
+        cout << "Created output directoy: " << dir << endl;
+    }
+}
+
 void plotfit(TString fname, size_t year = 2010, size_t month = 3, size_t day = 24) {
+
+    createDir("figures");
 
     cout << "File: " << fname << endl;
     string date = Form("%lu-%lu-%lu", year, month, day);
@@ -42,5 +60,5 @@ void plotfit(TString fname, size_t year = 2010, size_t month = 3, size_t day = 2
     gPad->SetTicks();
 //    c1->BuildLegend();
     
-    c1->Print("figures/test.png");
+    c1->Print(Form("figures/%s.png", date.c_str()));
 }

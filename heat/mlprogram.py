@@ -10,7 +10,7 @@ def parse_dates(x):
     return dt.datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
     
     
-def run(inputfile, n_lag, n_forecast, n_lead, t0_forecast, n_neurons, n_epochs, n_batch, train_fraction, predictChange, validate, cheat, verbosity):
+def run(inputfile, n_lag, n_forecast, n_lead, t0_forecast, n_neurons, n_epochs, n_batch, n_split, predictChange, validate, cheat, verbosity):
 
     # configure
     lstmStateful = False
@@ -33,49 +33,48 @@ def run(inputfile, n_lag, n_forecast, n_lead, t0_forecast, n_neurons, n_epochs, 
 
     # save configuration data
     nowPretty = dt.datetime.now().strftime("%Y-%m-%d, %H:%M:%S")
-    line = '# ' + nowPretty
+    line = ' ' + nowPretty
     logfile.write(line + '\n')
-    line = '# Input: ' + inputfile
+    line = ' Input: ' + inputfile
     logfile.write(line + '\n')
 
     # load dataset
-###    dataset = read_csv(inputfile, header=0, index_col=0, parse_dates=[0], date_parser=parse_dates)
     dataset = read_csv(inputfile, header=0, parse_dates=[0], date_parser=parse_dates)
     
     # drop date-time column
     dataset_data = dataset.drop('datetime', 1)    
 
     # prepare data
-    scaler, train, test, test_index, n_variables = sub.prepare_data(dataset_data, n_lag, n_forecast, n_lead, t0_forecast, train_fraction, n_days, ignoredVariables, predictChange, logfile)
+    scaler, trains, tests, tests_index, n_variables = sub.prepare_data(dataset_data, n_lag, n_forecast, n_lead, t0_forecast, n_split, n_days, ignoredVariables, predictChange, logfile)
 
     # save more configuration data
-    line = '# Lag: ' + str(n_lag)
+    line = ' Lag: ' + str(n_lag)
     logfile.write(line + '\n')
-    line = '# Forecast: ' + str(n_forecast)
+    line = ' Forecast: ' + str(n_forecast)
     logfile.write(line + '\n')
-    line = '# Lead: ' + str(n_lead)
+    line = ' Lead: ' + str(n_lead)
     logfile.write(line + '\n')
-    line = '# Forecast start: ' + str(t0_forecast)
+    line = ' Forecast start: ' + str(t0_forecast)
     logfile.write(line + '\n')
-    line = '# Forecast type: '
+    line = ' Forecast type: '
     if predictChange:
         line += 'Relative'
     else:
         line += 'Absolute'
     logfile.write(line + '\n')
-    line = '# Cheating: '
+    line = ' Cheating: '
     if cheat:
         line += 'ENABLED'
     else:
         line += 'DISABLED'
     logfile.write(line + '\n')
-    line = '# Network: [' + ', '.join(str(x) for x in n_neurons) + ']'
+    line = ' Network: [' + ', '.join(str(x) for x in n_neurons) + ']'
     logfile.write(line + '\n')
-    line = '# Batch size: ' + str(n_batch)
+    line = ' Batch size: ' + str(n_batch)
     logfile.write(line + '\n')
-    line = '# Epochs: ' + str(n_epochs)
+    line = ' Epochs: ' + str(n_epochs)
     logfile.write(line + '\n')
-    line = '# Validation: '
+    line = ' Validation: '
     if validate:
         line += 'ENABLED'
     else:
@@ -83,7 +82,7 @@ def run(inputfile, n_lag, n_forecast, n_lead, t0_forecast, n_neurons, n_epochs, 
 
     # fit model
     lossfig = 'output/lossHistory_' + now + '.png'
-    model, timePerEpoch = sub.fit_lstm(train, n_forecast, n_batch, n_epochs, n_neurons, lstmStateful, validate, test, cheat, lossfig, verbosity)
+    model, timePerEpoch = sub.fit_lstm(trains, n_forecast, n_batch, n_epochs, n_neurons, lstmStateful, validate, tests, cheat, lossfig, verbosity)
 
 ###    # print as check that network has been correctly configured    
 ###    print model.layers
@@ -92,14 +91,18 @@ def run(inputfile, n_lag, n_forecast, n_lead, t0_forecast, n_neurons, n_epochs, 
 
     # make forecast
     print 'Forecasting ...'
-    forecasts = sub.make_forecasts(model, n_batch, test, n_lag, n_forecast, cheat)
+    forecasts = sub.make_forecasts(model, n_batch, tests, n_lag, n_forecast, cheat)
 
     # actual values
-    actual = [row[-n_forecast:] for row in test]
-
+    actual = list()
+    for test in tests:
+        actual.extend([row[-n_forecast:] for row in test])
+        
     # actual values at t-1
     i0 = (n_lag - 1) * n_variables
-    baseline = [row[i0] for row in test]
+    baseline = list()
+    for test in tests:    
+        baseline.extend([row[i0] for row in test])
 
     # inverse transform
     print 'Inverse transform ...'
@@ -108,20 +111,18 @@ def run(inputfile, n_lag, n_forecast, n_lead, t0_forecast, n_neurons, n_epochs, 
 
     # evaluate forecast quality
     print 'Calculating RMSE ...'
-    sub.evaluate_forecasts(actual, forecasts, n_forecast, logfile)
+    sub.evaluate_forecasts(actual, forecasts, baseline, n_forecast, logfile)
     
     # save data and forecasts to root file
     rname = 'output/' + now + '.root'
-    ro.save_root_tree(dataset, forecasts, test, test_index, n_lead, rname)
+    ro.save_root_tree(dataset, forecasts, tests, tests_index, n_lead, rname)
 
     # save more configuration data
-    line = "# %.1f seconds/epoch" % timePerEpoch
+    line = ' %.1f seconds/epoch' % timePerEpoch
     logfile.write(line + '\n')
-    line = '# Loss history plot: ' + lossfig
+    line = ' Loss history plot: ' + lossfig
     logfile.write(line + '\n')
-###    line = '# LSTM forecast plot: ' + forecastfig
-###    logfile.write(line + '\n')
-    line = '# Root file: ' + rname
+    line = ' Root file: ' + rname
     logfile.write(line + '\n')
 
     print 'Log file:', logfile.name

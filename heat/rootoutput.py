@@ -2,11 +2,20 @@
 from ROOT import TTree, TFile
 from rootpy.tree import Tree, TreeModel, FloatCol, IntCol, FloatArrayCol
 from rootpy.io import root_open
+import numpy as np
+
     
 #-----------------------------------------------------------------------
 # save the data series and the forecasts to a ROOT TTree
 #-----------------------------------------------------------------------
-def save_root_tree(series, forecasts, test, test_index, n_lead, fname):
+def save_root_tree(series, forecasts, tests, tests_index, n_lead, fname):
+    test = tests[0] 
+    test_index = tests_index[0]
+    for i in range(1, len(tests)):
+        np.concatenate((test, tests[i]), axis=0)
+    for i in range(1, len(tests_index)):
+        np.concatenate((test_index, tests_index[i]), axis=0)
+
     # number of test samples
     nsamples = test_index.shape[0]
     # number of time steps that we are forecasting

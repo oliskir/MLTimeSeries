@@ -5,6 +5,7 @@ from pandas import to_datetime
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error
+from sklearn.model_selection import StratifiedKFold
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import LSTM
@@ -15,6 +16,7 @@ from numpy import array
 import numpy as np
 import time
 import csv
+
 
 
 #-----------------------------------------------------------------------
@@ -70,7 +72,7 @@ def series_to_supervised(data, hours, varname, n_in=1, n_out=1, n_lead=0, t0_for
 #-----------------------------------------------------------------------
 # transform series into train and test sets for supervised learning
 #-----------------------------------------------------------------------
-def prepare_data(series, n_in, n_out, n_lead, t0_forecast, train_frac, n_days, ignoredVar, predictChange, logfile):
+def prepare_data(series, n_in, n_out, n_lead, t0_forecast, n_split, n_days, ignoredVar, predictChange, logfile):
 
     # extract raw values
     values = series.values
@@ -111,6 +113,7 @@ def prepare_data(series, n_in, n_out, n_lead, t0_forecast, train_frac, n_days, i
 
     # normalize features (i.e., restrict values to be between 0 and 1)
     scaler = MinMaxScaler(feature_range=(0, 1))
+
     scaled = scaler.fit_transform(values)
 
     # frame as supervised learning
@@ -140,53 +143,62 @@ def prepare_data(series, n_in, n_out, n_lead, t0_forecast, train_frac, n_days, i
 
     # split into train and test sets
     values = reframed.values
-    n_train_samples = int(values.shape[0] * train_frac)
+    ss = int(values.shape[0] / n_split) # sample size
 
-###    train = values[:n_train_samples, :]  # select first n_train_samples entries
-###    test = values[n_train_samples:, :]   # select remaining entries
-###    test_index = reframed.index[n_train_samples:]
-
-    train = values[n_train_samples:, :]  # select first n_train_samples entries
-    test = values[:n_train_samples, :]   # select remaining entries
-    test_index = reframed.index[:n_train_samples]
-
+    trains, tests, tests_index = list(), list(), list()
+    for i in range(n_split):
+        i1 = i*ss
+        i2 = (i+1)*ss - 1
+        if (i2 > values.shape[0] - 1):
+            i2 = values.shape[0] - 1
+        test = values[i1:i2, :]
+        tests.append(test)
+        test_index = reframed.index[i1:i2]
+        tests_index.append(test_index)
+        indices = [i for i in range(i1,i2)]
+        train = np.delete(values,indices,axis=0)
+        trains.append(train)
+        
     # save config data to file
-    line = '# ' + str(N) + ' time steps'
+    line = ' ' + str(N) + ' time steps'
     logfile.write(line + '\n')
-    line = '# Variables: ' + ', '.join(variableNames)
+    line = ' Variables: ' + ', '.join(variableNames)
     logfile.write(line + '\n')
-    line = '# Variable to be forecasted: ' + str(variableNames[0])    
+    line = ' Variable to be forecasted: ' + str(variableNames[0])    
     logfile.write(line + '\n')
-    line = '# Training samples: ' + str(train.shape[0])        
+    line = ' Training samples: ' + str(train.shape[0])        
     logfile.write(line + '\n')
-    line = '# Test samples: ' + str(test.shape[0])        
+    line = ' Test samples: ' + str(test.shape[0])        
     logfile.write(line + '\n')
 
-    return scaler, train, test, test_index, n_var
+    return scaler, trains, tests, tests_index, n_var
+
+
+#-----------------------------------------------------------------------
+# split into input (X) and output (y) columns
+#-----------------------------------------------------------------------
+def split_into_Xy(data, n, cheat):
+    
+    # train
+    y = data[:, -n:]
+    if cheat:
+        X = data 
+    else:
+        X = data[:, :-n] 
+    X = X.reshape(X.shape[0], 1, X.shape[1])
+    return X, y
 
 
 #-----------------------------------------------------------------------
 # fit an LSTM network to training data
 #-----------------------------------------------------------------------
-def fit_lstm(train, n_out, n_batch, nb_epoch, n_neurons, lstmStateful, validate, test, cheat, figname, verbosity):
+def fit_lstm(trains, n_out, n_batch, nb_epoch, n_neurons, lstmStateful, validate, tests, cheat, figname, verbosity):
+
+    train = trains[0]
+    test  = tests[0]
 
     # split into input (X) and output (y)
-
-    # train
-    y = train[:, -n_out:]
-    if cheat:
-        X = train 
-    else:
-        X = train[:, :-n_out] 
-    X = X.reshape(X.shape[0], 1, X.shape[1])
-
-    # test
-    y_test = test[:, -n_out:]
-    if cheat:
-        X_test = test
-    else:
-        X_test = test[:, :-n_out]
-    X_test = X_test.reshape(X_test.shape[0], 1, X_test.shape[1])
+    X, y = split_into_Xy(train, n_out, cheat)
 
     # stacked layers?
     returnSeq = False
@@ -221,16 +233,33 @@ def fit_lstm(train, n_out, n_batch, nb_epoch, n_neurons, lstmStateful, validate,
 ###        model.reset_states()
 
     start_time = time.time()
-    
-    if validate:
-        history = model.fit(X, y, epochs=nb_epoch, batch_size=n_batch, validation_data=(X_test, y_test), verbose=verbosity, shuffle=False)
-    else:
-        history = model.fit(X, y, epochs=nb_epoch, batch_size=n_batch, verbose=verbosity, shuffle=False)
+
+    # loop over splits
+    loss, val_loss = list(), list()
+    for i in range(len(trains)):
+
+        print 'Split:',i+1
+
+        train = trains[i]
+        test  = tests[i]        
+        
+        # split into input (X) and output (y)
+        X, y = split_into_Xy(train, n_out, cheat)
+        X_test, y_test = split_into_Xy(test, n_out, cheat)
+
+        if validate:
+            history = model.fit(X, y, epochs=nb_epoch, batch_size=n_batch, validation_data=(X_test, y_test), verbose=verbosity, shuffle=False)
+        else:
+            history = model.fit(X, y, epochs=nb_epoch, batch_size=n_batch, verbose=verbosity, shuffle=False)
+
+        loss.extend(history.history['loss'])
+        if validate:
+            val_loss.extend(history.history['val_loss'])
 
     # plot history
-    ax = pyplot.plot(history.history['loss'], label='train')
+    ax = pyplot.plot(loss, label='train')
     if validate:
-        pyplot.plot(history.history['val_loss'], label='test')
+        pyplot.plot(val_loss, label='test')
     pyplot.yscale('log')
     pyplot.legend()
     pyplot.grid(b=True, which='both')
@@ -265,18 +294,19 @@ def make_single_forecast(model, X, n_batch):
 #-----------------------------------------------------------------------
 # make forecasts for entire test set
 #-----------------------------------------------------------------------
-def make_forecasts(model, n_batch, test, n_in, n_out, cheat):
+def make_forecasts(model, n_batch, tests, n_in, n_out, cheat):
     forecasts = list()
-    for i in range(len(test)):
-        # select input
-        if cheat:
-            X = test[i, :]
-        else:
-            X = test[i, :-n_out]
-        # make forecast
-        forecast = make_single_forecast(model, X, n_batch)
-        # store the forecast
-        forecasts.append(forecast)		
+    for test in tests:
+        for i in range(len(test)):
+            # select input
+            if cheat:
+                X = test[i, :]
+            else:
+                X = test[i, :-n_out]
+            # make forecast
+            forecast = make_single_forecast(model, X, n_batch)
+            # store the forecast
+            forecasts.append(forecast)		
     return forecasts
 
 
@@ -314,23 +344,29 @@ def inverse_transform(normalized, scaler, n_var, predictChange, baseline):
 
 
 #-----------------------------------------------------------------------
-# evaluate the RMSE for each forecast time step
+# evaluate the RMSE for LSTM model and simple persistence model
 #-----------------------------------------------------------------------
-def evaluate_forecasts(test, forecasts, n_out, logfile):
+def evaluate_forecasts(actuals, forecasts, baseline, n_out, logfile):
 
-    line = '# t+i  RMSE(LSTM)  RMSE(Persistence)'
-    logfile.write(line + '\n')
-
+    # collapse into a 1d list
+    actual, forecast = list(), list()
     for i in range(n_out):
-        actual = [row[i] for row in test]
-        predicted = [forecast[i] for forecast in forecasts]
-        rmse_lstm = sqrt(mean_squared_error(actual, predicted))
+        actual.extend([row[i] for row in actuals])
+        forecast.extend([row[i] for row in forecasts])
 
-        persistence = [row[i] for row in test]
-        for j in range(i+1):
-            actual.pop(0)   # remove 1st item
-            persistence.pop() # remove last item
-        rmse_persist = sqrt(mean_squared_error(actual, persistence))
+    persist = list()
+    for i in range(len(baseline)):
+        b = baseline[i]
+        for i in range(n_out):
+            persist.append(b)
+    
+    print len(actual), len(forecast), len(persist)
+        
+    rmse_lstm = sqrt(mean_squared_error(actual, forecast))
 
-        line = ' %d  %f  %f' % ((i+1), rmse_lstm, rmse_persist)
-        logfile.write(line + '\n')
+    rmse_persist = sqrt(mean_squared_error(actual, persist))
+
+    line = ' RMSE(LSTM): %f' % rmse_lstm
+    logfile.write(line + '\n')
+    line = ' RMSE(persist): %f' % rmse_persist
+    logfile.write(line + '\n')

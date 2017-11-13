@@ -14,7 +14,7 @@ def main(argv):
     n_neurons = [40]
     n_epochs = 2
     n_batch = 365
-    train_fraction = 0.33
+    n_split = 5
     predictChange = False
     validate = False
     cheat = False
@@ -22,9 +22,9 @@ def main(argv):
 
     # parse command-line args
     try:
-        opts, args = getopt.getopt(argv,"hDVCl:f:e:b:t:v:i:n:a:s:")
+        opts, args = getopt.getopt(argv,"hDVCl:f:e:b:p:v:i:n:a:s:")
     except getopt.GetoptError:
-        print 'main.py -n <neurons> -l <lag> -f <forecast-length> -a <lead> -s <forecast-start-hour> -e <epochs> -b <batch-size> -t <training-fraction> -v <verbosity> -i <input-file> -D -V -C'
+        print 'main.py -n <neurons> -l <lag> -f <forecast-length> -a <lead> -s <forecast-start-hour> -e <epochs> -b <batch-size> -p <split> -v <verbosity> -i <input-file> -D -V -C'
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
@@ -38,8 +38,8 @@ def main(argv):
             n_epochs = int(arg)
         elif opt in ("-b"):
             n_batch = int(arg)
-        elif opt in ("-t"):
-            train_fraction = float(arg)
+        elif opt in ("-p"):
+            n_split = int(arg)
         elif opt in ("-v"):
             verbosity = int(arg)
         elif opt in ("-a"):
@@ -61,7 +61,7 @@ def main(argv):
             cheat = True
 
     # run program
-    ml.run(inputfile, n_lag, n_forecast, n_lead, t0_forecast, n_neurons, n_epochs, n_batch, train_fraction, predictChange, validate, cheat, verbosity)
+    ml.run(inputfile, n_lag, n_forecast, n_lead, t0_forecast, n_neurons, n_epochs, n_batch, n_split, predictChange, validate, cheat, verbosity)
 
 
 if __name__ == "__main__":

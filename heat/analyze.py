@@ -2,7 +2,7 @@
 
 import mlprogram as ml
 
-def analyze:
+def analyze():
 
     inputfile = '../../heat_load_weather_calendar.csv'
 

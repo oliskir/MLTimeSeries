@@ -49,7 +49,7 @@ def run(inputfile, n_lag, n_forecast, t0_make, t0_forecast, n_neurons, n_epochs,
     scaler, trains, tests, tests_index, n_variables = sub.prepare_data(dataset_data, n_lag, n_forecast, n_lead, t0_forecast, n_split, n_days, ignoredVariables, predictChange, logfile)
 
     # save more configuration data
-    line = ' Input length: ' + str(n_lag) + 'hours'
+    line = ' Input length: ' + str(n_lag) + ' hours'
     logfile.write(line + '\n')
     line = ' Make forecast: ' + str(t0_make) + ':00'
     logfile.write(line + '\n')
@@ -83,16 +83,12 @@ def run(inputfile, n_lag, n_forecast, t0_make, t0_forecast, n_neurons, n_epochs,
 
     # fit model
     lossfig = 'output/lossHistory_' + now + '.png'
-    model, timePerEpoch = sub.fit_lstm(trains, n_forecast, n_batch, n_epochs, n_neurons, lstmStateful, validate, tests, cheat, lossfig, verbosity)
+    model, timePerEpoch, forecasts = sub.fit_lstm(trains, n_lag, n_forecast, n_batch, n_epochs, n_neurons, lstmStateful, validate, tests, cheat, lossfig, verbosity)
 
 ###    # print as check that network has been correctly configured    
 ###    print model.layers
 ###    print model.inputs
 ###    print model.outputs
-
-    # make forecast
-    print 'Forecasting ...'
-    forecasts = sub.make_forecasts(model, n_batch, tests, n_lag, n_forecast, cheat)
 
     # actual values
     actual = list()

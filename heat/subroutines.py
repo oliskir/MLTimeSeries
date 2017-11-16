@@ -192,7 +192,7 @@ def split_into_Xy(data, n, cheat):
 #-----------------------------------------------------------------------
 # fit an LSTM network to training data
 #-----------------------------------------------------------------------
-def fit_lstm(trains, n_out, n_batch, nb_epoch, n_neurons, lstmStateful, validate, tests, cheat, figname, verbosity):
+def fit_lstm(trains, n_lag, n_out, n_batch, nb_epoch, n_neurons, lstmStateful, validate, tests, cheat, figname, verbosity):
 
     train = trains[0]
     test  = tests[0]
@@ -233,6 +233,7 @@ def fit_lstm(trains, n_out, n_batch, nb_epoch, n_neurons, lstmStateful, validate
 ###        model.reset_states()
 
     start_time = time.time()
+    forecasts = list()
 
     # loop over splits
     loss, val_loss = list(), list()
@@ -247,6 +248,7 @@ def fit_lstm(trains, n_out, n_batch, nb_epoch, n_neurons, lstmStateful, validate
         X, y = split_into_Xy(train, n_out, cheat)
         X_test, y_test = split_into_Xy(test, n_out, cheat)
 
+        # train
         if validate:
             history = model.fit(X, y, epochs=nb_epoch, batch_size=n_batch, validation_data=(X_test, y_test), verbose=verbosity, shuffle=False)
         else:
@@ -255,6 +257,11 @@ def fit_lstm(trains, n_out, n_batch, nb_epoch, n_neurons, lstmStateful, validate
         loss.extend(history.history['loss'])
         if validate:
             val_loss.extend(history.history['val_loss'])
+            
+        # make forecast
+        print 'Forecasting ...'
+        f = make_forecasts(model, n_batch, test, n_lag, n_out, cheat)
+        forecasts.extend(f)
 
     # plot history
     ax = pyplot.plot(loss, label='train')
@@ -276,7 +283,7 @@ def fit_lstm(trains, n_out, n_batch, nb_epoch, n_neurons, lstmStateful, validate
     print("%.1f seconds/epoch" % timePerEpoch)
     print 'Training completed'
 
-    return model, timePerEpoch
+    return model, timePerEpoch, forecasts
 	
 
 #-----------------------------------------------------------------------
@@ -294,19 +301,18 @@ def make_single_forecast(model, X, n_batch):
 #-----------------------------------------------------------------------
 # make forecasts for entire test set
 #-----------------------------------------------------------------------
-def make_forecasts(model, n_batch, tests, n_in, n_out, cheat):
+def make_forecasts(model, n_batch, test, n_in, n_out, cheat):
     forecasts = list()
-    for test in tests:
-        for i in range(len(test)):
-            # select input
-            if cheat:
-                X = test[i, :]
-            else:
-                X = test[i, :-n_out]
-            # make forecast
-            forecast = make_single_forecast(model, X, n_batch)
-            # store the forecast
-            forecasts.append(forecast)		
+    for i in range(len(test)):
+        # select input
+        if cheat:
+            X = test[i, :]
+        else:
+            X = test[i, :-n_out]
+        # make forecast
+        forecast = make_single_forecast(model, X, n_batch)
+        # store the forecast
+        forecasts.append(forecast)		
     return forecasts
 
 

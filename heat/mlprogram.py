@@ -10,13 +10,14 @@ def parse_dates(x):
     return dt.datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
     
     
-def run(inputfile, n_lag, n_forecast, t0_make, t0_forecast, n_neurons, n_epochs, n_batch, n_split, predictChange, validate, cheat, verbosity):
+def run(inputfile, n_lag, n_forecast, t0_make, t0_forecast, n_neurons, n_epochs, n_batch, n_split, predictChange, validate, cheat, verbosity, seed):
 
     # configure
     n_lead = 24 - t0_make + 1 + t0_forecast
     lstmStateful = False
     n_days = -1   # set to -1 to process entire data set
     ignoredVariables = [3, 4, 5, 6, 7, 8, 9, 10]
+    rangeBuffer = 0.05
 
     # create output directory if necessary
     try: 
@@ -46,7 +47,7 @@ def run(inputfile, n_lag, n_forecast, t0_make, t0_forecast, n_neurons, n_epochs,
     dataset_data = dataset.drop('datetime', 1)    
 
     # prepare data
-    scaler, trains, tests, tests_index, n_variables = sub.prepare_data(dataset_data, n_lag, n_forecast, n_lead, t0_forecast, n_split, n_days, ignoredVariables, predictChange, logfile)
+    scaler, trains, tests, tests_index, n_variables = sub.prepare_data(dataset_data, n_lag, n_forecast, n_lead, t0_forecast, n_split, n_days, ignoredVariables, predictChange, rangeBuffer, logfile)
 
     # save more configuration data
     line = ' Input length: ' + str(n_lag) + ' hours'
@@ -83,7 +84,7 @@ def run(inputfile, n_lag, n_forecast, t0_make, t0_forecast, n_neurons, n_epochs,
 
     # fit model
     lossfig = 'output/lossHistory_' + now + '.png'
-    model, timePerEpoch, forecasts = sub.fit_lstm(trains, n_lag, n_forecast, n_batch, n_epochs, n_neurons, lstmStateful, validate, tests, cheat, lossfig, verbosity)
+    model, timePerEpoch, forecasts = sub.fit_lstm(trains, n_lag, n_forecast, n_batch, n_epochs, n_neurons, lstmStateful, validate, tests, cheat, lossfig, verbosity, seed)
 
 ###    # print as check that network has been correctly configured    
 ###    print model.layers

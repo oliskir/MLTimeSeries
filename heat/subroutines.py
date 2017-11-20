@@ -72,7 +72,7 @@ def series_to_supervised(data, hours, varname, n_in=1, n_out=1, n_lead=0, t0_for
 #-----------------------------------------------------------------------
 # transform series into train and test sets for supervised learning
 #-----------------------------------------------------------------------
-def prepare_data(series, n_in, n_out, n_lead, t0_forecast, n_split, n_days, ignoredVar, predictChange, logfile):
+def prepare_data(series, n_in, n_out, n_lead, t0_forecast, n_split, n_days, ignoredVar, predictChange, rangeBuffer, logfile):
 
     # extract raw values
     values = series.values
@@ -99,7 +99,7 @@ def prepare_data(series, n_in, n_out, n_lead, t0_forecast, n_split, n_days, igno
         del variableNames[i]
         
     # add rate-of-change variable
-    if False:
+    if predictChange:
         variableNames.insert(0, 'Dprod')        
         values = np.c_[ np.zeros(N), values ]
         for i in range(1, N-1):
@@ -112,7 +112,7 @@ def prepare_data(series, n_in, n_out, n_lead, t0_forecast, n_split, n_days, igno
     n_var = values.shape[1]
 
     # normalize features (i.e., restrict values to be between 0 and 1)
-    scaler = MinMaxScaler(feature_range=(0, 1))
+    scaler = MinMaxScaler(feature_range=(0.+rangeBuffer, 1.-rangeBuffer))
 
     scaled = scaler.fit_transform(values)
 
@@ -192,13 +192,16 @@ def split_into_Xy(data, n, cheat):
 #-----------------------------------------------------------------------
 # fit an LSTM network to training data
 #-----------------------------------------------------------------------
-def fit_lstm(trains, n_lag, n_out, n_batch, nb_epoch, n_neurons, lstmStateful, validate, tests, cheat, figname, verbosity):
-
-    train = trains[0]
-    test  = tests[0]
+def fit_lstm(trains, n_lag, n_out, n_batch, nb_epoch, n_neurons, lstmStateful, validate, tests, cheat, figname, verbosity, seed):
 
     # split into input (X) and output (y)
+    train = trains[0]
+    test  = tests[0]
     X, y = split_into_Xy(train, n_out, cheat)
+
+	# fix random seed for reproducibility
+    if (seed > 0): 
+        np.random.seed(7)
 
     # stacked layers?
     returnSeq = False

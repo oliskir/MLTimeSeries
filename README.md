@@ -42,3 +42,9 @@ The program outputs (1) a .txt file with a summary of the settings and the forec
 - rootpy
 
 ROOT and rootpy are only needed to produce the .root output file, and hence are not essential.
+
+## Installation notes
+- To run Keras on GPU: 
+(1) conda install theano pygpu
+(1) conda install -c mila-udem -c mila-udem/label/pre theano pygpu
+(2) THEANO_FLAGS=device=cuda,floatX=float32 python my_keras_script.py

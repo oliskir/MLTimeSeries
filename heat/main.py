@@ -19,16 +19,17 @@ def main(argv):
     validate = False
     cheat = False
     verbosity = 2
+    seed = 0
 
     # parse command-line args
     try:
         opts, args = getopt.getopt(argv,"hDVCi:f:e:b:p:v:d:n:m:s:")
     except getopt.GetoptError:
-        print 'main.py -n <neurons> -l <input-length> -f <forecast-length> -m <forecast-make-hour> -s <forecast-start-hour> -e <epochs> -b <batch-size> -p <split> -v <verbosity> -d <data-file> -D -V -C'
+        print 'main.py -n <neurons> -i <input-length> -f <forecast-length> -m <forecast-make-hour> -s <forecast-start-hour> -e <epochs> -b <batch-size> -p <split> -v <verbosity> -r <random-number-generator-seed> -d <data-file> -D -V -C'
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
-            print 'main.py -n <neurons> -i <input-length> -f <forecast-length> -m <forecast-make-hour> -s <forecast-start-hour> -e <epochs> -b <batch-size> -p <split> -v <verbosity> -d <data-file> -D -V -C'
+            print 'main.py -n <neurons> -i <input-length> -f <forecast-length> -m <forecast-make-hour> -s <forecast-start-hour> -e <epochs> -b <batch-size> -p <split> -v <verbosity> -r <random-number-generator-seed> -d <data-file> -D -V -C'
             sys.exit()
         elif opt in ("-i"):
             n_lag = int(arg)
@@ -48,6 +49,8 @@ def main(argv):
             t0_start = int(arg)
         elif opt in ("-d"):
             inputfile = arg
+        elif opt in ("-r"):
+            seed = int(arg)
         elif opt in ("-n"):
             layers = arg.split(",")
             del n_neurons[:]

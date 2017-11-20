@@ -72,7 +72,7 @@ def series_to_supervised(data, hours, varname, n_in=1, n_out=1, n_lead=0, t0_for
 #-----------------------------------------------------------------------
 # transform series into train and test sets for supervised learning
 #-----------------------------------------------------------------------
-def prepare_data(series, n_in, n_out, n_lead, t0_forecast, n_split, n_days, ignoredVar, predictChange, rangeBuffer, logfile):
+def prepare_data_for_training(series, n_in, n_out, n_lead, t0_forecast, n_split, n_days, ignoredVar, predictChange, rangeBuffer, logfile):
 
     # extract raw values
     values = series.values
@@ -113,7 +113,6 @@ def prepare_data(series, n_in, n_out, n_lead, t0_forecast, n_split, n_days, igno
 
     # normalize features (i.e., restrict values to be between 0 and 1)
     scaler = MinMaxScaler(feature_range=(0.+rangeBuffer, 1.-rangeBuffer))
-
     scaled = scaler.fit_transform(values)
 
     # frame as supervised learning
@@ -192,7 +191,7 @@ def split_into_Xy(data, n, cheat):
 #-----------------------------------------------------------------------
 # fit an LSTM network to training data
 #-----------------------------------------------------------------------
-def fit_lstm(trains, n_lag, n_out, n_batch, nb_epoch, n_neurons, lstmStateful, validate, tests, cheat, figname, verbosity, seed):
+def fit_lstm(trains, n_lag, n_out, n_batch, nb_epoch, n_neurons, lstmStateful, validate, tests, cheat, figname, verbosity, n_seed):
 
     # split into input (X) and output (y)
     train = trains[0]
@@ -200,8 +199,8 @@ def fit_lstm(trains, n_lag, n_out, n_batch, nb_epoch, n_neurons, lstmStateful, v
     X, y = split_into_Xy(train, n_out, cheat)
 
 	# fix random seed for reproducibility
-    if (seed > 0): 
-        np.random.seed(7)
+    if (n_seed > 0): 
+        np.random.seed(n_seed)
 
     # stacked layers?
     returnSeq = False
@@ -324,14 +323,9 @@ def make_forecasts(model, n_batch, test, n_in, n_out, cheat):
 #-----------------------------------------------------------------------
 def inverse_transform(normalized, scaler, n_var, predictChange, baseline):
 
-    # determine min and max values for forecasted quantity
-    dummy = np.zeros((1, n_var))
-    dummy[0][0] = 0
-    dummy = scaler.inverse_transform(dummy)
-    ymin = dummy[0][0]
-    dummy[0][0] = 1
-    dummy = scaler.inverse_transform(dummy)
-    ymax = dummy[0][0]
+    # scaling parameters for forecasted quantity
+    beta = scaler.min_[0]
+    alpha = scaler.scale_[0]
 
     # invert scaling
     inverted = list()
@@ -343,7 +337,7 @@ def inverse_transform(normalized, scaler, n_var, predictChange, baseline):
             if predictChange:
                 yn = 2 * yn - 1
                 yn = yn + baseline[i]
-            y = ymin + (ymax - ymin) * yn
+            y = (yn - beta) / alpha
             inv_i.append(y)
 
         # store

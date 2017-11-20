@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 import sys, getopt
-import mlprogram as ml
+import ml
 
 def main(argv):
 
@@ -23,7 +23,7 @@ def main(argv):
 
     # parse command-line args
     try:
-        opts, args = getopt.getopt(argv,"hDVCi:f:e:b:p:v:d:n:m:s:")
+        opts, args = getopt.getopt(argv,"hDVCi:f:e:b:p:v:d:n:m:s:r:")
     except getopt.GetoptError:
         print 'main.py -n <neurons> -i <input-length> -f <forecast-length> -m <forecast-make-hour> -s <forecast-start-hour> -e <epochs> -b <batch-size> -p <split> -v <verbosity> -r <random-number-generator-seed> -d <data-file> -D -V -C'
         sys.exit(2)
@@ -64,7 +64,7 @@ def main(argv):
             cheat = True
 
     # run program
-    ml.run(inputfile, n_lag, n_forecast, t0_make, t0_start, n_neurons, n_epochs, n_batch, n_split, predictChange, validate, cheat, verbosity)
+    ml.train(inputfile, n_lag, n_forecast, t0_make, t0_start, n_neurons, n_epochs, n_batch, n_split, predictChange, validate, cheat, verbosity, seed)
 
 
 if __name__ == "__main__":

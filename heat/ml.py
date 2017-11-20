@@ -3,6 +3,9 @@ from pandas import read_csv
 import subroutines as sub
 import datetime as dt
 import os
+from sklearn.externals import joblib
+from keras.models import model_from_json
+
 import rootoutput as ro
 
 
@@ -10,7 +13,7 @@ def parse_dates(x):
     return dt.datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
     
     
-def run(inputfile, n_lag, n_forecast, t0_make, t0_forecast, n_neurons, n_epochs, n_batch, n_split, predictChange, validate, cheat, verbosity, seed):
+def train(inputfile, n_lag, n_forecast, t0_make, t0_forecast, n_neurons, n_epochs, n_batch, n_split, predictChange, validate, cheat, verbosity, seed):
 
     # configure
     n_lead = 24 - t0_make + 1 + t0_forecast
@@ -19,11 +22,16 @@ def run(inputfile, n_lag, n_forecast, t0_make, t0_forecast, n_neurons, n_epochs,
     ignoredVariables = [3, 4, 5, 6, 7, 8, 9, 10]
     rangeBuffer = 0.05
 
-    # create output directory if necessary
+    # create output directories if necessary
     try: 
         os.makedirs('output')
     except OSError:
         if not os.path.isdir('output'):
+            raise
+    try: 
+        os.makedirs('output_train/model')
+    except OSError:
+        if not os.path.isdir('output_train/model'):
             raise
         
     # current date and time
@@ -31,7 +39,7 @@ def run(inputfile, n_lag, n_forecast, t0_make, t0_forecast, n_neurons, n_epochs,
     now = dt.datetime.now().strftime("%Y-%m-%d_%H%M%S")
     
     # open log file
-    logfile = open('output/'+now+'.log', 'w+')
+    logfile = open('output_train/'+now+'.log', 'w+')
 
     # save configuration data
     nowPretty = dt.datetime.now().strftime("%Y-%m-%d, %H:%M:%S")
@@ -47,7 +55,10 @@ def run(inputfile, n_lag, n_forecast, t0_make, t0_forecast, n_neurons, n_epochs,
     dataset_data = dataset.drop('datetime', 1)    
 
     # prepare data
-    scaler, trains, tests, tests_index, n_variables = sub.prepare_data(dataset_data, n_lag, n_forecast, n_lead, t0_forecast, n_split, n_days, ignoredVariables, predictChange, rangeBuffer, logfile)
+    scaler, trains, tests, tests_index, n_variables = sub.prepare_data_for_training(dataset_data, n_lag, n_forecast, n_lead, t0_forecast, n_split, n_days, ignoredVariables, predictChange, rangeBuffer, logfile)
+
+    # save scaler
+    joblib.dump(scaler, 'output_train/model/'+now+'.scaler') 
 
     # save more configuration data
     line = ' Input length: ' + str(n_lag) + ' hours'
@@ -83,8 +94,16 @@ def run(inputfile, n_lag, n_forecast, t0_make, t0_forecast, n_neurons, n_epochs,
         line += 'DISABLED'
 
     # fit model
-    lossfig = 'output/lossHistory_' + now + '.png'
+    lossfig = 'output_train/lossHistory_' + now + '.png'
     model, timePerEpoch, forecasts = sub.fit_lstm(trains, n_lag, n_forecast, n_batch, n_epochs, n_neurons, lstmStateful, validate, tests, cheat, lossfig, verbosity, seed)
+
+    # serialize model to JSON
+    model_json = model.to_json()
+    with open('output_train/model/'+now+'.json', 'w') as json_file:
+        json_file.write(model_json)
+    # serialize weights to HDF5
+    model.save_weights('output_train/model/'+now+'.h5')
+    print("Saved model to disk")
 
 ###    # print as check that network has been correctly configured    
 ###    print model.layers
@@ -112,7 +131,7 @@ def run(inputfile, n_lag, n_forecast, t0_make, t0_forecast, n_neurons, n_epochs,
     RMSE = sub.evaluate_forecasts(actual, forecasts, baseline, n_forecast, logfile)
     
     # save data and forecasts to root file
-    rname = 'output/' + now + '.root'
+    rname = 'output_train/' + now + '.root'
     ro.save_root_tree(dataset, forecasts, tests, tests_index, n_lead, rname)
 
     # save more configuration data
@@ -129,4 +148,31 @@ def run(inputfile, n_lag, n_forecast, t0_make, t0_forecast, n_neurons, n_epochs,
     print 'RMSE: ',RMSE    
         
     return RMSE
+
+
+def test(inputfile, modelfile, weightsfile, scalerfile):
+
+    # load dataset
+    dataset = read_csv(inputfile, header=0, parse_dates=[0], date_parser=parse_dates)
+
+    # drop date-time column
+    dataset_data = dataset.drop('datetime', 1)    
+
+    # load scaler
+    scaler = joblib.load(scalerfile) 
+
+    # load json and create model
+    json_file = open(modelfile, 'r')
+    loaded_model_json = json_file.read()
+    json_file.close()
+    loaded_model = model_from_json(loaded_model_json)
+
+    # load weights into new model
+    loaded_model.load_weights(weightsfile)
+
+    print("Loaded model from disk")
+
+    # prepare data
+#    scaler, trains, tests, tests_index, n_variables = sub.prepare_data_for_testing(dataset_data, n_lag, n_forecast, n_lead, t0_forecast, n_split, n_days, ignoredVariables, predictChange, rangeBuffer, logfile)
+    
 

@@ -7,4 +7,4 @@
 
 #python train.py -n 100 -i 34 -f 24 -m 10 -s 0 -e 10 -v 0 -V -C
 
-python train.py -n 10 -i 34 -f 24 -m 10 -s 0 -e 10 -r 7 -v 0 -V
+python train.py -n 10 -i 2 -f 3 -m 10 -s 0 -e 10 -r 7 -v 0 -V

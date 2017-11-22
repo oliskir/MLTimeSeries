@@ -6,6 +6,7 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import StratifiedKFold
+from sklearn.preprocessing import OneHotEncoder
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import LSTM
@@ -68,11 +69,11 @@ def series_to_supervised(data, hours, varname, n_in=1, n_out=1, n_lead=0, t0_for
         
     return agg0
 
- 
+
 #-----------------------------------------------------------------------
-# transform series into train and test sets for supervised learning
+# transform series into set for supervised learning
 #-----------------------------------------------------------------------
-def prepare_data_for_training(series, n_in, n_out, n_lead, t0_forecast, n_split, n_days, ignoredVar, predictChange, rangeBuffer, logfile):
+def prepare_data(series, n_in, n_out, n_lead, t0_forecast, n_days, ignoredVar, rangeBuffer):
 
     # extract raw values
     values = series.values
@@ -85,35 +86,56 @@ def prepare_data_for_training(series, n_in, n_out, n_lead, t0_forecast, n_split,
     
     # hour column
     hours = values[:, 8]
-
-    # ensure all data is float
-    values = values.astype('float32')
-
+    
     # variable names
     variableNames = list(series.columns.values)
-    
-    # remove ignored variables
+
+    # remove ignored variables and their names
     values = np.delete(values, ignoredVar, 1)
     for j in range(len(ignoredVar)-1, -1, -1):
         i = ignoredVar[j]
         del variableNames[i]
-        
-    # add rate-of-change variable
-    if predictChange:
-        variableNames.insert(0, 'Dprod')        
-        values = np.c_[ np.zeros(N), values ]
-        for i in range(1, N-1):
-            values[i][0] = values[i][1] - values[i-1][1]
-        values = np.delete(values, N-1, axis=0)
-        values = np.delete(values, 0, axis=0)
-        N = values.shape[0]
 
-    # number of variables    
-    n_var = values.shape[1]
+    # select variables for one-hot encoding
+    oneHotVarNames = ['weekend','observance','national_holiday','school_holiday','hour','weekday','month']
+    oneHotVar = []
+    for j in range(values.shape[1]):
+        name = variableNames[j]
+        if name in oneHotVarNames:
+            oneHotVar.append(j)
+
+    # one-hot encode 
+    enc = OneHotEncoder()
+    if len(oneHotVar) > 0:
+        enc.fit(values[:,oneHotVar])  
+        encoded_values = enc.transform(values[:,oneHotVar]).toarray()
+
+    # remove one-hot encoded columns and names
+    variableNames_keep = variableNames[:]
+    if len(oneHotVar) > 0:
+        values = np.delete(values, oneHotVar, 1)
+        for j in range(len(oneHotVar)-1, -1, -1):
+            i = oneHotVar[j]
+            del variableNames[i]
+
+    # ensure all data is float
+    values = values.astype('float32')
 
     # normalize features (i.e., restrict values to be between 0 and 1)
     scaler = MinMaxScaler(feature_range=(0.+rangeBuffer, 1.-rangeBuffer))
     scaled = scaler.fit_transform(values)
+
+    # insert one-hot encoded values and provide names
+    if len(oneHotVar) > 0:
+        scaled = np.concatenate((scaled, encoded_values), axis=1)
+        for i in range(len(oneHotVar)):
+            for j in range(enc.n_values_[i]):
+                tag = '_%i' % j 
+                name = variableNames_keep[oneHotVar[i]] + tag
+                variableNames.append(name)
+
+    # number of variables    
+    n_var = scaled.shape[1]
 
     # frame as supervised learning
     reframed = series_to_supervised(scaled, hours, variableNames, n_in, n_out, n_lead, t0_forecast)
@@ -126,20 +148,21 @@ def prepare_data_for_training(series, n_in, n_out, n_lead, t0_forecast, n_split,
         l += list(reframed.columns[j+1:])
         l += list(reframed.columns[[j]])
         reframed = reframed.reindex_axis(l, axis=1)
+
+    print(reframed.head())
+
+    return reframed, variableNames, scaler, n_var, N
+
+
+ 
+#-----------------------------------------------------------------------
+# split into train and test sets for supervised learning
+#-----------------------------------------------------------------------
+def prepare_data_for_training(series, n_in, n_out, n_lead, t0_forecast, n_split, n_days, ignoredVar, rangeBuffer, logfile):
+
+    # transform series into set for supervised learning
+    reframed, variableNames, scaler, n_var, N = prepare_data(series, n_in, n_out, n_lead, t0_forecast, n_days, ignoredVar, rangeBuffer)
         
-###    print(reframed.head())
-
-    # if predicting change, calculate deviation relative to prod(t).
-    # (add 1 and divide by 2 to ensure that deviation is between 0 and 1)
-    if predictChange:    
-        key_0 = reframed.columns[(n_in - 1) * n_var]
-        n = reframed.shape[1]
-        for i in range(n-1, n-n_out-1, -1):
-            key = reframed.columns[i]
-            reframed[key] = reframed[key] - reframed[key_0]
-            reframed[key] = reframed[key]+1
-            reframed[key] = reframed[key]*0.5
-
     # split into train and test sets
     values = reframed.values
     ss = int(values.shape[0] / n_split) # sample size
@@ -176,14 +199,14 @@ def prepare_data_for_training(series, n_in, n_out, n_lead, t0_forecast, n_split,
 #-----------------------------------------------------------------------
 # split into input (X) and output (y) columns
 #-----------------------------------------------------------------------
-def split_into_Xy(data, n, cheat):
+def split_into_Xy(data, n_out, cheat):
     
     # train
-    y = data[:, -n:]
+    y = data[:, -n_out:]
     if cheat:
         X = data 
     else:
-        X = data[:, :-n] 
+        X = data[:, :-n_out] 
     X = X.reshape(X.shape[0], 1, X.shape[1])
     return X, y
 
@@ -223,16 +246,6 @@ def fit_lstm(trains, n_lag, n_out, n_batch, nb_epoch, n_neurons, lstmStateful, v
     model.compile(loss='mean_squared_error', optimizer='adam')
 
     print('Training LSTM model ...')
-
-    # fit network
-###    start_time = 0
-###    for i in range(nb_epoch):
-###        if i == 1: 
-###            start_time = time.time()
-###        j = i + 1
-###        print("Epoch {0}/{1}".format(j, nb_epoch))
-###        model.fit(X, y, epochs=1, batch_size=n_batch, verbose=0, shuffle=False)
-###        model.reset_states()
 
     start_time = time.time()
     forecasts = list()
@@ -321,7 +334,7 @@ def make_forecasts(model, n_batch, test, n_in, n_out, cheat):
 #-----------------------------------------------------------------------
 # inverse data transform
 #-----------------------------------------------------------------------
-def inverse_transform(normalized, scaler, n_var, predictChange, baseline):
+def inverse_transform(normalized, scaler, n_var, baseline):
 
     # scaling parameters for forecasted quantity
     beta = scaler.min_[0]
@@ -334,9 +347,6 @@ def inverse_transform(normalized, scaler, n_var, predictChange, baseline):
         inv_i = list()
         for j in range(len(norm_i)):
             yn = norm_i[j]
-            if predictChange:
-                yn = 2 * yn - 1
-                yn = yn + baseline[i]
             y = (yn - beta) / alpha
             inv_i.append(y)
 

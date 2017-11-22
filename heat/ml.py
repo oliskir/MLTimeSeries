@@ -13,13 +13,14 @@ def parse_dates(x):
     return dt.datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
     
     
-def train(inputfile, n_lag, n_forecast, t0_make, t0_forecast, n_neurons, n_epochs, n_batch, n_split, predictChange, validate, cheat, verbosity, seed):
+def train(inputfile, n_lag, n_forecast, t0_make, t0_forecast, n_neurons, n_epochs, n_batch, n_split, validate, cheat, verbosity, seed):
 
     # configure
     n_lead = 24 - t0_make + 1 + t0_forecast
     lstmStateful = False
     n_days = -1   # set to -1 to process entire data set
-    ignoredVariables = [3, 4, 5, 6, 7, 8, 9, 10]
+    ignoredVariables = [3,8] # sunRad and hour
+##    ignoredVariables = [3,4,5,6,7,8,9,10]
     rangeBuffer = 0.05
 
     # create output directories if necessary
@@ -55,7 +56,7 @@ def train(inputfile, n_lag, n_forecast, t0_make, t0_forecast, n_neurons, n_epoch
     dataset_data = dataset.drop('datetime', 1)    
 
     # prepare data
-    scaler, trains, tests, tests_index, n_variables = sub.prepare_data_for_training(dataset_data, n_lag, n_forecast, n_lead, t0_forecast, n_split, n_days, ignoredVariables, predictChange, rangeBuffer, logfile)
+    scaler, trains, tests, tests_index, n_variables = sub.prepare_data_for_training(dataset_data, n_lag, n_forecast, n_lead, t0_forecast, n_split, n_days, ignoredVariables, rangeBuffer, logfile)
 
     # save scaler
     joblib.dump(scaler, 'output_train/model/'+now+'.scaler') 
@@ -68,12 +69,6 @@ def train(inputfile, n_lag, n_forecast, t0_make, t0_forecast, n_neurons, n_epoch
     line = ' Start forecast: ' + str(t0_forecast) + ':00'
     logfile.write(line + '\n')
     line = ' Forecast length: ' + str(n_forecast) + ' hours'
-    logfile.write(line + '\n')
-    line = ' Forecast type: '
-    if predictChange:
-        line += 'Relative'
-    else:
-        line += 'Absolute'
     logfile.write(line + '\n')
     line = ' Cheating: '
     if cheat:
@@ -123,8 +118,8 @@ def train(inputfile, n_lag, n_forecast, t0_make, t0_forecast, n_neurons, n_epoch
 
     # inverse transform
     print 'Inverse transform ...'
-    forecasts = sub.inverse_transform(forecasts, scaler, n_variables, predictChange, baseline)
-    actual = sub.inverse_transform(actual, scaler, n_variables, predictChange, baseline)
+    forecasts = sub.inverse_transform(forecasts, scaler, n_variables, baseline)
+    actual = sub.inverse_transform(actual, scaler, n_variables, baseline)
 
     # evaluate forecast quality
     print 'Calculating RMSE ...'

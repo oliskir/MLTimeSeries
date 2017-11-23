@@ -149,7 +149,7 @@ def prepare_data(series, n_in, n_out, n_lead, t0_forecast, n_days, ignoredVar, r
         l += list(reframed.columns[[j]])
         reframed = reframed.reindex_axis(l, axis=1)
 
-    print(reframed.head())
+###    print(reframed.head())
 
     return reframed, variableNames, scaler, n_var, N
 

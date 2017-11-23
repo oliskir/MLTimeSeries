@@ -19,8 +19,9 @@ def train(inputfile, n_lag, n_forecast, t0_make, t0_forecast, n_neurons, n_epoch
     n_lead = 24 - t0_make + 1 + t0_forecast
     lstmStateful = False
     n_days = -1   # set to -1 to process entire data set
-    ignoredVariables = [3,8] # sunRad and hour
-##    ignoredVariables = [3,4,5,6,7,8,9,10]
+##    ignoredVariables = [3,8] # sunRad and hour
+##    ignoredVariables = [3,5,6,7,8,9,10] 
+    ignoredVariables = [3,4,5,6,7,8,9,10]
     rangeBuffer = 0.05
 
     # create output directories if necessary

@@ -19,16 +19,17 @@ def main(argv):
     cheat = False
     verbosity = 2
     seed = 0
+    ignore = ['sunRad','hour','weekend','observance','national_holiday','school_holiday','weekday','month']
 
     # parse command-line args
     try:
         opts, args = getopt.getopt(argv,"hVCi:f:e:b:p:v:d:n:m:s:r:")
     except getopt.GetoptError:
-        print 'main.py -n <neurons> -i <input-length> -f <forecast-length> -m <forecast-make-hour> -s <forecast-start-hour> -e <epochs> -b <batch-size> -p <split> -v <verbosity> -r <random-number-generator-seed> -d <data-file> -V -C'
+        print 'train.py -n <neurons> -i <input-length> -f <forecast-length> -m <forecast-make-hour> -s <forecast-start-hour> -e <epochs> -b <batch-size> -p <split> -v <verbosity> -r <random-number-generator-seed> -d <data-file> -V -C'
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
-            print 'main.py -n <neurons> -i <input-length> -f <forecast-length> -m <forecast-make-hour> -s <forecast-start-hour> -e <epochs> -b <batch-size> -p <split> -v <verbosity> -r <random-number-generator-seed> -d <data-file> -V -C'
+            print 'train.py -n <neurons> -i <input-length> -f <forecast-length> -m <forecast-make-hour> -s <forecast-start-hour> -e <epochs> -b <batch-size> -p <split> -v <verbosity> -r <random-number-generator-seed> -d <data-file> -V -C'
             sys.exit()
         elif opt in ("-i"):
             n_lag = int(arg)
@@ -61,7 +62,7 @@ def main(argv):
             cheat = True
 
     # run program
-    ml.train(inputfile, n_lag, n_forecast, t0_make, t0_start, n_neurons, n_epochs, n_batch, n_split, validate, cheat, verbosity, seed)
+    ml.train(inputfile, n_lag, n_forecast, t0_make, t0_start, n_neurons, n_epochs, n_batch, n_split, validate, cheat, verbosity, seed, ignore)
 
 
 if __name__ == "__main__":

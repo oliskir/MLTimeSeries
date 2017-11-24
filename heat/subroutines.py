@@ -73,7 +73,7 @@ def series_to_supervised(data, hours, varname, n_in=1, n_out=1, n_lead=0, t0_for
 #-----------------------------------------------------------------------
 # transform series into set for supervised learning
 #-----------------------------------------------------------------------
-def prepare_data(series, n_in, n_out, n_lead, t0_forecast, n_days, ignoredVar, rangeBuffer):
+def prepare_data(series, n_in, n_out, n_lead, t0_forecast, n_days, ignoredVar, rangeBuffer, scaler=None):
 
     # extract raw values
     values = series.values
@@ -91,9 +91,15 @@ def prepare_data(series, n_in, n_out, n_lead, t0_forecast, n_days, ignoredVar, r
     variableNames = list(series.columns.values)
 
     # remove ignored variables and their names
-    values = np.delete(values, ignoredVar, 1)
-    for j in range(len(ignoredVar)-1, -1, -1):
-        i = ignoredVar[j]
+    ignore = []
+    for ign in ignoredVar:
+        for i in range(len(variableNames)):
+            if (variableNames[i] == ign):
+                ignore.append(i)
+    ignore = sorted(ignore, key=int) 
+    values = np.delete(values, ignore, 1)
+    for j in range(len(ignore)-1, -1, -1):
+        i = ignore[j]
         del variableNames[i]
 
     # select variables for one-hot encoding
@@ -122,7 +128,8 @@ def prepare_data(series, n_in, n_out, n_lead, t0_forecast, n_days, ignoredVar, r
     values = values.astype('float32')
 
     # normalize features (i.e., restrict values to be between 0 and 1)
-    scaler = MinMaxScaler(feature_range=(0.+rangeBuffer, 1.-rangeBuffer))
+    if scaler is None:
+        scaler = MinMaxScaler(feature_range=(0.+rangeBuffer, 1.-rangeBuffer))
     scaled = scaler.fit_transform(values)
 
     # insert one-hot encoded values and provide names
@@ -184,13 +191,15 @@ def prepare_data_for_training(series, n_in, n_out, n_lead, t0_forecast, n_split,
     # save config data to file
     line = ' ' + str(N) + ' time steps'
     logfile.write(line + '\n')
-    line = ' Variables: ' + ', '.join(variableNames)
+    line = ' Variables: ' + ','.join(variableNames)
     logfile.write(line + '\n')
-    line = ' Variable to be forecasted: ' + str(variableNames[0])    
+    line = ' Ignored_variables: ' + ','.join(ignoredVar)
     logfile.write(line + '\n')
-    line = ' Training samples: ' + str(train.shape[0])        
+    line = ' Predict: ' + str(variableNames[0])    
     logfile.write(line + '\n')
-    line = ' Test samples: ' + str(test.shape[0])        
+    line = ' Training_samples: ' + str(train.shape[0])        
+    logfile.write(line + '\n')
+    line = ' Test_samples: ' + str(test.shape[0])        
     logfile.write(line + '\n')
 
     return scaler, trains, tests, tests_index, n_var
@@ -298,7 +307,7 @@ def fit_lstm(trains, n_lag, n_out, n_batch, nb_epoch, n_neurons, lstmStateful, v
     print("%.1f seconds/epoch" % timePerEpoch)
     print 'Training completed'
 
-    return model, timePerEpoch, forecasts
+    return model, duration, forecasts
 	
 
 #-----------------------------------------------------------------------
@@ -334,7 +343,7 @@ def make_forecasts(model, n_batch, test, n_in, n_out, cheat):
 #-----------------------------------------------------------------------
 # inverse data transform
 #-----------------------------------------------------------------------
-def inverse_transform(normalized, scaler, n_var, baseline):
+def inverse_transform(normalized, scaler):
 
     # scaling parameters for forecasted quantity
     beta = scaler.min_[0]
@@ -359,7 +368,7 @@ def inverse_transform(normalized, scaler, n_var, baseline):
 #-----------------------------------------------------------------------
 # evaluate the RMSE for LSTM model and simple persistence model
 #-----------------------------------------------------------------------
-def evaluate_forecasts(actuals, forecasts, baseline, n_out, logfile):
+def evaluate_forecasts(actuals, forecasts, baseline, n_out):
 
     # collapse into a 1d list
     actual, forecast = list(), list()
@@ -377,9 +386,38 @@ def evaluate_forecasts(actuals, forecasts, baseline, n_out, logfile):
 
     rmse_persist = sqrt(mean_squared_error(actual, persist))
 
-    line = ' RMSE(LSTM): %f' % rmse_lstm
-    logfile.write(line + '\n')
-    line = ' RMSE(persist): %f' % rmse_persist
-    logfile.write(line + '\n')
+    return rmse_lstm, rmse_persist
     
-    return rmse_lstm
+
+#-----------------------------------------------------------------------
+# Read configuration from log file
+#-----------------------------------------------------------------------
+def read_log_file(logfile):
+    
+    n_lag = 0
+    n_forecast = 0
+    t0_make = 0
+    t0_forecast = 0
+    n_batch = 0
+    ignore = list()
+    
+    with open(logfile, 'r') as f:
+        text = f.readlines()
+         
+        for line in text:
+            words = line.split()
+            for i in range(len(words)):
+                if words[i] == 'Input_length:':
+                    n_lag = int(words[i+1])
+                elif words[i] == 'Forecast_length:':
+                    n_forecast = int(words[i+1])
+                elif words[i] == 'Make_forecast:':
+                    t0_make = int(words[i+1])
+                elif words[i] == 'Start_forecast:':
+                    t0_forecast = int(words[i+1])
+                elif words[i] == 'Batch_size:':
+                    n_batch = int(words[i+1])
+                elif words[i] == 'Ignored_variables:':
+                    ignore = words[i+1].split(',')
+
+    return n_lag, n_forecast, t0_make, t0_forecast, ignore, n_batch

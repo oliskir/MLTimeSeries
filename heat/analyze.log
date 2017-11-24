@@ -44,22 +44,69 @@ n=[10] 27.7 [0.02-0.98]
 n=[10] 27.8 [0.05-0.95]
 n=[10] 27.9 [0.1-0.9]
 
-1000 epochs w/o cheating, input=178, 0.1-0.9:
+1000 epochs w/o cheating, input=178, 0.05-0.95:
 n=[50] 33.1 [w one-hot]
 n=[50] 27.6 [w/o one-hot]
 
-5000 epochs w/o cheating, input=178, 0.1-0.9:
+5000 epochs w/o cheating, input=178, 0.05-0.95:
 n=[50] 34.3 [w one-hot]
 
-5000 epochs w/o cheating, input=34, 0.1-0.9:
+5000 epochs w/o cheating, input=34, 0.05-0.95:
 n=[50] 33.0 [w one-hot]
 n=[50] 27.2 [w/o one-hot]
 
-5000 epochs w/o cheating, input=1, 0.1-0.9:
+5000 epochs w/o cheating, input=1, 0.05-0.95:
 n=[20] 33.2 [w one-hot]
 n=[20] 33.2 [w/o one-hot]
 
-5000 epochs w/o cheating, input=1, 0.1-0.9:
+5000 epochs w/o cheating, input=1, 0.05-0.95:
 n=[10] 33.0
 n=[10] 29.3 [+weekend]
+n=[10] 29.6 [+weekend,+observance]
+n=[10] 30.1 etc...
+n=[10] 29.6
+n=[10] 31.9
+n=[10] 31.9
 
+10000 epochs w/o cheating, input=1, 0.05-0.95:
+n=[10] 33.5
+n=[10] 29.3 [+weekend]
+n=[10] 30.6 etc...
+n=[10] 30.6
+n=[10] 30.0
+n=[10] 32.4
+n=[10] 32.1
+
+5000 epochs w/o cheating, input=1, 0.05-0.95:
+n=[20] 33.2
+n=[20] 30.4 [+weekend]
+n=[20] 30.8 etc...
+n=[20] 32.1
+n=[20] 31.2
+n=[20] 33.7
+n=[20] 33.2
+
+5000 epochs w/o cheating, input=1, 0.05-0.95:
+n=[10,10] 33.0
+n=[10,10] 30.0 [+weekend]
+n=[10,10] 30.8 etc...
+n=[10,10] 30.4
+n=[10,10] 31.2
+n=[10,10] 32.1
+n=[10,10] 31.8
+
+5000 epochs w/o cheating, input=1, 0.05-0.95:
+n=[5,5,5,5] 34.6
+n=[5,5,5,5] 30.7 [+weekend]
+n=[5,5,5,5] 31.4 etc...
+n=[5,5,5,5] 31.8
+n=[5,5,5,5] 30.4
+n=[5,5,5,5] 35.8
+n=[5,5,5,5] 31.5
+
+5000 epochs w/o cheating, input=178, 0.05-0.95:
+n=[10] 25.6
+n=[10] 26.3 [+weekend]
+
+
+n=[10] 25.6

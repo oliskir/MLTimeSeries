@@ -4,5 +4,6 @@ output/
 mlprogram.pyc
 heat/figures/
 *.pyc
-train/
-test/
+output_train/
+test.out
+

@@ -283,7 +283,6 @@ def fit_lstm(trains, n_lag, n_out, n_batch, nb_epoch, n_neurons, lstmStateful, v
             val_loss.extend(history.history['val_loss'])
             
         # make forecast
-        print 'Forecasting ...'
         f = make_forecasts(model, n_batch, test, n_lag, n_out, cheat)
         forecasts.extend(f)
 

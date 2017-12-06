@@ -1,7 +1,84 @@
  #!/usr/bin/python
 
+from pandas import read_csv
+import subroutines as sub
+import datetime as dt
+import os
+from sklearn.externals import joblib
+from keras.models import model_from_json
+   
+   
+def parse_dates(x):
+    return dt.datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
+
+
+def test(inputfile, logfile, modelfile, weightsfile, scalerfile):
+
+    # read settings from log file
+    n_lag, n_forecast, t0_make, t0_forecast, ignore, n_batch = sub.read_log_file(logfile)
+    n_lead = 24 - t0_make + 1 + t0_forecast
+
+    # load dataset
+    dataset = read_csv(inputfile, header=0, parse_dates=[0], date_parser=parse_dates)
+
+    # drop date-time column
+    dataset_data = dataset.drop('datetime', 1)    
+
+    # load scaler
+    scaler = joblib.load(scalerfile) 
+
+    # load json and create model
+    json_file = open(modelfile, 'r')
+    model_json = json_file.read()
+    json_file.close()
+    model = model_from_json(model_json)
+
+    # load weights into new model
+    model.load_weights(weightsfile)
+
+    print("Loaded model from disk")
+
+    # prepare data
+    reframed, names, scaler, n_variables, N = sub.prepare_data(dataset_data, n_lag, n_forecast, n_lead, t0_forecast, -1, ignore, 0, scaler)
+
+    values = reframed.values
+    
+    # make forecast
+    print("Forecasting ...")
+    forecasts = sub.make_forecasts(model, n_batch, values, n_lag, n_forecast, False)
+    
+    # actual values
+    actual = [row[-n_forecast:] for row in values]
+        
+    # actual values at t-1
+    i0 = (n_lag - 1) * n_variables
+    baseline = [row[i0] for row in values]
+
+    # inverse transform
+    print 'Inverse transform ...'
+    forecasts = sub.inverse_transform(forecasts, scaler)
+    actual = sub.inverse_transform(actual, scaler)
+
+    # evaluate forecast quality
+    print 'Calculating RMSE ...'
+    RMSE, RMSE_persist = sub.evaluate_forecasts(actual, forecasts, baseline, n_forecast)
+    print 'RMSE: %f' % RMSE
+
+    # save to ascii file    
+    outfile = open('test.out', 'w+')
+    actual_list, forecast_list = list(), list()
+    for i in range(n_forecast):
+        actual_list.extend([row[i] for row in actual])
+        forecast_list.extend([row[i] for row in forecasts])
+    for j in range(len(actual)):
+        line = ' %.1f, %.1f\n' % (actual_list[j], forecast_list[j])
+        outfile.write(line)
+    outfile.close()
+    print 'Data and prediction saved to test.out'
+    
+
 import sys, getopt
-import ml
+
 
 def main(argv):
 
@@ -30,12 +107,9 @@ def main(argv):
     scalerfile  = 'output_train/model/' + now + '.scaler'
 
     # run program
-    ml.test(inputfile, logfile, modelfile, weightsfile, scalerfile)
+    test(inputfile, logfile, modelfile, weightsfile, scalerfile)
 
 
 if __name__ == "__main__":
     main(sys.argv[1:])
-   
-   
-
-
+    

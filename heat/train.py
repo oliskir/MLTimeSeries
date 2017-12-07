@@ -172,17 +172,17 @@ def main(argv):
     cheat = False
     verbosity = 2
     seed = 0
-    ignore = ['sunRad','hour','weekend','observance','national_holiday','school_holiday','weekday','month']
+    ignore = []
 
     # parse command-line args
     try:
-        opts, args = getopt.getopt(argv,"hVCi:f:e:b:p:v:d:n:m:s:r:")
+        opts, args = getopt.getopt(argv,"hVCi:f:e:b:p:v:d:n:m:s:r:g:")
     except getopt.GetoptError:
-        print 'train.py -n <neurons> -i <input-length> -f <forecast-length> -m <forecast-make-hour> -s <forecast-start-hour> -e <epochs> -b <batch-size> -p <split> -v <verbosity> -r <random-number-generator-seed> -d <data-file> -V -C'
+        print 'train.py -n <neurons-1st-layer-1>[<neurons-2nd-layer>,etc] -i <input-length> -f <forecast-length> -m <forecast-make-hour> -s <forecast-start-hour> -e <epochs> -b <batch-size> -p <split> -v <verbosity> -r <random-number-generator-seed> -d <data-file> -g <ignore-column>[<ignore-another-column>,etc] -V -C'
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
-            print 'train.py -n <neurons> -i <input-length> -f <forecast-length> -m <forecast-make-hour> -s <forecast-start-hour> -e <epochs> -b <batch-size> -p <split> -v <verbosity> -r <random-number-generator-seed> -d <data-file> -V -C'
+            print 'train.py -n <neurons-1st-layer-1>[<neurons-2nd-layer>,etc] -i <input-length> -f <forecast-length> -m <forecast-make-hour> -s <forecast-start-hour> -e <epochs> -b <batch-size> -p <split> -v <verbosity> -r <random-number-generator-seed> -d <data-file> -g <ignore-column>[<ignore-another-column>,etc] -V -C'
             sys.exit()
         elif opt in ("-i"):
             n_lag = int(arg)
@@ -199,7 +199,7 @@ def main(argv):
         elif opt in ("-m"):
             t0_make = int(arg)
         elif opt in ("-s"):
-            t0_start = int(arg)
+            t0_forecast = int(arg)
         elif opt in ("-d"):
             inputfile = arg
         elif opt in ("-r"):
@@ -209,13 +209,15 @@ def main(argv):
             del n_neurons[:]
             for l in layers:
                 n_neurons.append(int(l))
+        elif opt in ("-g"):
+            ignore = arg.split(",")
         elif opt in ("-V"):
             validate = True
         elif opt in ("-C"):
             cheat = True
 
     # run program
-    train(inputfile, n_lag, n_forecast, t0_make, t0_start, n_neurons, n_epochs, n_batch, n_split, validate, cheat, verbosity, seed, ignore)
+    train(inputfile, n_lag, n_forecast, t0_make, t0_forecast, n_neurons, n_epochs, n_batch, n_split, validate, cheat, verbosity, seed, ignore)
 
 
 if __name__ == "__main__":

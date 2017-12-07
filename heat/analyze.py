@@ -18,16 +18,18 @@ ignore.remove('school_holiday')
 ignore.remove('weekday')
 ignore.remove('month')
              
-e=50
-for n in range(1):
+e=5000
+n=5
+for input in [1,34,58,178]:
     logfile = open('analyze.log', 'a')
     logfile.write('\n')
     y = list()
     for i in range(1):
-        yy = train.train(inputfile, 1, 24, 10, 0, [2,2], e, 365, 5, False, False, 0, seed, ignore)
+        yy = train.train(inputfile, input, 24, 10, 0, [n,n], e, 365, 5, False, False, 0, seed, ignore)
         y.append(yy)
     rmse = sum(y)/len(y)
-    x = 'n=[%i] %.1f' % (n, rmse)
+#    x = 'n=[%i] %.1f' % (n, rmse)
+    x = 'input=[%i] %.1f' % (input, rmse)
     logfile.write(x + '\n')
     logfile.close()
 

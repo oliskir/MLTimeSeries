@@ -25,11 +25,14 @@ python train.py [options] -d <csv-data-file>
 | -e         | Training epochs (default: 1000) | -e 10000 |
 | -b         | Batch size (days) (default: 365) | -b 100 |
 | -p         | Number of splits for cross validation (default: 5) | -p 4 |
+| -x         | Scaler type (default: Standard)  | -x MinMax |
 | -v         | Verbosity level (default: 0)  | -v 2 |
 | -V         | Enable validation  | -V | 
 | -C         | Cheat (include values that we wish to forecast as part of the input) | -C |
 | -r         | Seed for random number generator | -r 7 |
 | -g         | Ignore columns in the data file | -g sunRad,hour |
+
+The user can choose between two scaler types: Standard, MinMax
 
 ## Example
 ```terminal

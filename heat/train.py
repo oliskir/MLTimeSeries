@@ -170,7 +170,7 @@ def main(argv):
     n_split = 5
     validate = False
     cheat = False
-    verbosity = 2
+    verbosity = 0
     seed = 0
     ignore = []
 

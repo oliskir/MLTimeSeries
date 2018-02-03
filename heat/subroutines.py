@@ -4,6 +4,7 @@ from pandas import concat
 from pandas import to_datetime
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import OneHotEncoder
@@ -17,7 +18,8 @@ from numpy import array
 import numpy as np
 import time
 import csv
-
+import sys
+import sklearn
 
 
 #-----------------------------------------------------------------------
@@ -73,7 +75,9 @@ def series_to_supervised(data, hours, varname, n_in=1, n_out=1, n_lead=0, t0_for
 #-----------------------------------------------------------------------
 # transform series into set for supervised learning
 #-----------------------------------------------------------------------
-def prepare_data(series, n_in, n_out, n_lead, t0_forecast, n_days, ignoredVar, rangeBuffer, scaler=None):
+def prepare_data(series, n_in, n_out, n_lead, t0_forecast, n_days, ignoredVar, scalerType, scaler=None):
+
+    rangeBuffer = 0.05
 
     # extract raw values
     values = series.values
@@ -127,9 +131,15 @@ def prepare_data(series, n_in, n_out, n_lead, t0_forecast, n_days, ignoredVar, r
     # ensure all data is float
     values = values.astype('float32')
 
-    # normalize features (i.e., restrict values to be between 0 and 1)
+    # normalize features (i.e., mean = 0 and std.dev. = 1)
     if scaler is None:
-        scaler = MinMaxScaler(feature_range=(0.+rangeBuffer, 1.-rangeBuffer))
+        if (scalerType == 'MinMax'):
+            scaler = MinMaxScaler(feature_range=(0.+rangeBuffer, 1.-rangeBuffer))
+        elif (scalerType == 'Standard'):
+            scaler = StandardScaler()
+        else:
+            print 'Unknown scaler type: ',scalerType
+            sys.exit(0)
     scaled = scaler.fit_transform(values)
 
     # insert one-hot encoded values and provide names
@@ -345,9 +355,16 @@ def make_forecasts(model, n_batch, test, n_in, n_out, cheat):
 def inverse_transform(normalized, scaler):
 
     # scaling parameters for forecasted quantity
-    beta = scaler.min_[0]
-    alpha = scaler.scale_[0]
-
+    if isinstance(scaler, sklearn.preprocessing.data.MinMaxScaler):
+        beta = scaler.min_[0]
+        alpha = scaler.scale_[0]
+    elif isinstance(scaler, sklearn.preprocessing.data.StandardScaler):
+        beta = -scaler.mean_[0] / scaler.scale_[0]
+        alpha = 1. / scaler.scale_[0]
+    else:
+        print 'Unknown scaler type: ',type(scaler)
+        sys.exit(0)
+    
     # invert scaling
     inverted = list()
     for i in range(len(normalized)):

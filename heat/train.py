@@ -13,7 +13,7 @@ def parse_dates(x):
     return dt.datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
     
         
-def train(inputfile, n_lag, n_forecast, t0_make, t0_forecast, n_neurons, n_epochs, n_batch, n_split, validate, cheat, verbosity, seed, ignoredVariables):
+def train(inputfile, n_lag, n_forecast, t0_make, t0_forecast, n_neurons, n_epochs, n_batch, n_split, scalerType, validate, cheat, verbosity, seed, ignoredVariables):
 
     # configure
     n_lead = 24 - t0_make + 1 + t0_forecast
@@ -49,7 +49,7 @@ def train(inputfile, n_lag, n_forecast, t0_make, t0_forecast, n_neurons, n_epoch
     dataset_data = dataset.drop('datetime', 1)    
 
     # prepare data
-    scaler, trains, tests, tests_index, n_variables = sub.prepare_data_for_training(dataset_data, n_lag, n_forecast, n_lead, t0_forecast, n_split, n_days, ignoredVariables, rangeBuffer, logfile)
+    scaler, trains, tests, tests_index, n_variables = sub.prepare_data_for_training(dataset_data, n_lag, n_forecast, n_lead, t0_forecast, n_split, n_days, ignoredVariables, scalerType, logfile)
 
     # save scaler
     sname = 'output_train/model/'+now+'.scaler'
@@ -168,6 +168,7 @@ def main(argv):
     n_epochs = 1000
     n_batch = 365
     n_split = 5
+    scalerType = 'Standard'
     validate = False
     cheat = False
     verbosity = 0
@@ -176,13 +177,13 @@ def main(argv):
 
     # parse command-line args
     try:
-        opts, args = getopt.getopt(argv,"hVCi:f:e:b:p:v:d:n:m:s:r:g:")
+        opts, args = getopt.getopt(argv,"hVCi:f:e:b:p:v:d:n:m:s:r:g:x:")
     except getopt.GetoptError:
-        print 'train.py -n <neurons-1st-layer-1>[<neurons-2nd-layer>,etc] -i <input-length> -f <forecast-length> -m <forecast-make-hour> -s <forecast-start-hour> -e <epochs> -b <batch-size> -p <split> -v <verbosity> -r <random-number-generator-seed> -d <data-file> -g <ignore-column>[<ignore-another-column>,etc] -V -C'
+        print 'train.py -n <neurons-1st-layer-1>[<neurons-2nd-layer>,etc] -i <input-length> -f <forecast-length> -m <forecast-make-hour> -s <forecast-start-hour> -e <epochs> -b <batch-size> -p <split> -x <scaler-type> -v <verbosity> -r <random-number-generator-seed> -d <data-file> -g <ignore-column>[<ignore-another-column>,etc] -V -C'
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
-            print 'train.py -n <neurons-1st-layer-1>[<neurons-2nd-layer>,etc] -i <input-length> -f <forecast-length> -m <forecast-make-hour> -s <forecast-start-hour> -e <epochs> -b <batch-size> -p <split> -v <verbosity> -r <random-number-generator-seed> -d <data-file> -g <ignore-column>[<ignore-another-column>,etc] -V -C'
+            print 'train.py -n <neurons-1st-layer-1>[<neurons-2nd-layer>,etc] -i <input-length> -f <forecast-length> -m <forecast-make-hour> -s <forecast-start-hour> -e <epochs> -b <batch-size> -p <split> -x <scaler-type> -v <verbosity> -r <random-number-generator-seed> -d <data-file> -g <ignore-column>[<ignore-another-column>,etc] -V -C'
             sys.exit()
         elif opt in ("-i"):
             n_lag = int(arg)
@@ -204,6 +205,8 @@ def main(argv):
             inputfile = arg
         elif opt in ("-r"):
             seed = int(arg)
+        elif opt in ("-x"):
+            scalerType = arg
         elif opt in ("-n"):
             layers = arg.split(",")
             del n_neurons[:]
@@ -217,7 +220,7 @@ def main(argv):
             cheat = True
 
     # run program
-    train(inputfile, n_lag, n_forecast, t0_make, t0_forecast, n_neurons, n_epochs, n_batch, n_split, validate, cheat, verbosity, seed, ignore)
+    train(inputfile, n_lag, n_forecast, t0_make, t0_forecast, n_neurons, n_epochs, n_batch, n_split, scalerType, validate, cheat, verbosity, seed, ignore)
 
 
 if __name__ == "__main__":

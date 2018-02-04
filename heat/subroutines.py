@@ -131,7 +131,7 @@ def prepare_data(series, n_in, n_out, n_lead, t0_forecast, n_days, ignoredVar, s
     # ensure all data is float
     values = values.astype('float32')
 
-    # normalize features (i.e., mean = 0 and std.dev. = 1)
+    # normalize features
     if scaler is None:
         if (scalerType == 'MinMax'):
             scaler = MinMaxScaler(feature_range=(0.+rangeBuffer, 1.-rangeBuffer))

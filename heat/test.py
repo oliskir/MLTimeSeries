@@ -6,6 +6,7 @@ import datetime as dt
 import os
 from sklearn.externals import joblib
 from keras.models import model_from_json
+import sys
    
    
 def parse_dates(x):
@@ -19,10 +20,14 @@ def test(inputfile, logfile, modelfile, weightsfile, scalerfile):
     n_lead = 24 - t0_make + 1 + t0_forecast
 
     # load dataset
-    dataset = read_csv(inputfile, header=0, parse_dates=[0], date_parser=parse_dates)
-
-    # drop date-time column
-    dataset_data = dataset.drop('datetime', 1)    
+    if '.csv' in inputfile:
+        dataset = read_csv(inputfile, header=0, parse_dates=[0], date_parser=parse_dates)
+        dataset_data = dataset.drop('datetime', 1)    
+    elif '.pkl' in inputfile:
+        dataset = read_pickle("test_data.pkl")
+    else:
+        print 'Unknown file format: ',inputfile
+        sys.exit(0)
 
     # load scaler
     scaler = joblib.load(scalerfile) 
@@ -77,7 +82,7 @@ def test(inputfile, logfile, modelfile, weightsfile, scalerfile):
     print 'Data and prediction saved to test.out'
     
 
-import sys, getopt
+import getopt
 
 
 def main(argv):

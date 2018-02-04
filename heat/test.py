@@ -1,6 +1,7 @@
  #!/usr/bin/python
 
 from pandas import read_csv
+from pandas import read_pickle
 import subroutines as sub
 import datetime as dt
 import os
@@ -18,16 +19,22 @@ def test(inputfile, logfile, modelfile, weightsfile, scalerfile):
     # read settings from log file
     n_lag, n_forecast, t0_make, t0_forecast, ignore, n_batch = sub.read_log_file(logfile)
     n_lead = 24 - t0_make + 1 + t0_forecast
-
+    
     # load dataset
     if '.csv' in inputfile:
         dataset = read_csv(inputfile, header=0, parse_dates=[0], date_parser=parse_dates)
         dataset_data = dataset.drop('datetime', 1)    
     elif '.pkl' in inputfile:
-        dataset = read_pickle("test_data.pkl")
+        dataset_data = read_pickle(inputfile)
     else:
         print 'Unknown file format: ',inputfile
         sys.exit(0)
+        
+    # ignore lagged variables
+    variableNames = list(dataset_data.columns.values)
+    for name in variableNames:
+        if '_lag' in name:
+            ignore.append(name)
 
     # load scaler
     scaler = joblib.load(scalerfile) 
@@ -88,7 +95,7 @@ import getopt
 def main(argv):
 
     # default values
-    inputfile = '../../heat_load_weather_calendar.csv'
+    inputfile = '../../heat_load_data/heat_load_weather_calendar.csv'
     now = '2017-11-24_081427'
 
     # parse command-line args

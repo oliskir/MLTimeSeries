@@ -159,7 +159,7 @@ import sys, getopt
 def main(argv):
 
     # default values
-    inputfile = '../../heat_load_weather_calendar.csv'
+    inputfile = '../../heat_load_data/heat_load_weather_calendar.csv'
     n_lag = 34
     n_forecast = 24
     t0_make = 10 

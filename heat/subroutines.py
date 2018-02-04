@@ -89,7 +89,8 @@ def prepare_data(series, n_in, n_out, n_lead, t0_forecast, n_days, ignoredVar, s
     N = values.shape[0]
     
     # hour column
-    hours = values[:, 8]
+#    hours = values[:, 8]
+    hours = series['hour'].values
     
     # variable names
     variableNames = list(series.columns.values)

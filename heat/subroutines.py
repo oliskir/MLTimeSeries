@@ -120,6 +120,11 @@ def prepare_data(series, n_in, n_out, n_lead, t0_forecast, n_days, ignoredVar, s
     if len(oneHotVar) > 0:
         enc.fit(values[:,oneHotVar])  
         encoded_values = enc.transform(values[:,oneHotVar]).toarray()
+        # change to dummy-encoding
+        delId = encoded_values.shape[1] - 1
+        for j in range(len(oneHotVar)-1, -1, -1):
+            encoded_values = np.delete(encoded_values, delId, 1)
+            delId -= enc.n_values_[j]
 
     # remove one-hot encoded columns and names
     variableNames_keep = variableNames[:]
@@ -147,7 +152,7 @@ def prepare_data(series, n_in, n_out, n_lead, t0_forecast, n_days, ignoredVar, s
     if len(oneHotVar) > 0:
         scaled = np.concatenate((scaled, encoded_values), axis=1)
         for i in range(len(oneHotVar)):
-            for j in range(enc.n_values_[i]):
+            for j in range(enc.n_values_[i]-1):
                 tag = '_%i' % j 
                 name = variableNames_keep[oneHotVar[i]] + tag
                 variableNames.append(name)

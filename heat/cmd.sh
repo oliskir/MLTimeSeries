@@ -9,4 +9,4 @@
 
 #python train.py -n 10 -i 34 -f 24 -m 10 -s 1 -e 1000 -r 7 -x Standard -v 0 -V -g sunRad,hour,weekend,observance,national_holiday,school_holiday,weekday,month
 
-python train.py -n 10 -i 158 -f 24 -m 10 -s 1 -e 1000 -r 7 -x Standard -v 0 -V -g weekend,observance,national_holiday,school_holiday,hour,weekday,month
+python train.py -n 110 -i 168 -f 24 -m 10 -s 1 -e 20 -r 7 -x Standard -v 0 -V -g observance,national_holiday,school_holiday

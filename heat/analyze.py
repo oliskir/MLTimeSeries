@@ -27,7 +27,7 @@ ignore.remove('month')
 #ignore.remove('school_holiday')
 
              
-e=20
+e=15
 for n in [110]:
     logfile = open('analyze.log', 'a')
     logfile.write('\n')

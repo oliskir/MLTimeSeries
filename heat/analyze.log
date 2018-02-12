@@ -168,4 +168,24 @@ n=[80,80] 32.6
 Weather: 31.3 (2016: 28.4)
 Weather+Calendar(-hour): 32.3 (2016: 29.6)
 Weather+Calendar(-hour)+Holidays: 33.7 (2016: 32.0)
+Weather+weekend: 30.3 (2016: 27.6)
+Weather+weekend+weekday: 30.2 (2016: 30.9)
+[15 epochs] Weather+weekend+weekday: 32.4 (2016: 27.0)
+[15 epochs] Weather+weekend+weekday+month: 35.2 (2016: 30.1)
+[10 epochs] Weather+weekend+weekday+month: 38.4 (2016: 30.5)
+[5 epochs] Weather+weekend+weekday+month: 38.4 (2016: 30.5)
+[15 epochs] Weather+month: 34.6 (2016: 30.4)
+[10 epochs] Weather+month: 39.3 (2016: 30.9)
 
+20 epochs, [110] neurons w/o cheating, input=168, Standard, Dummy-encoding:
+Weather+weekend: 31.0 (2016: 27.4)
+[15 epochs] Weather+weekend: 32.5 (2016: 27.4)
+[15 epochs] Weather+weekend+weekday: 31.8 (2016: 27.5)
+[15 epochs] Weather+weekend+weekday+month: 35.3 (2016: 29.2)
+[10 epochs] Weather+weekend+weekday+month: 37.3 (2016: 29.7)
+[20 epochs] Weather+weekend+weekday+month: 31.4 (2016: 31.4)
+
+
+n=[40] 39.8
+
+n=[40] 51.5

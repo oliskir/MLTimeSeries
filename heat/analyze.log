@@ -185,7 +185,18 @@ Weather+weekend: 31.0 (2016: 27.4)
 [10 epochs] Weather+weekend+weekday+month: 37.3 (2016: 29.7)
 [20 epochs] Weather+weekend+weekday+month: 31.4 (2016: 31.4)
 
+20 epochs, 1 epoch = 730 days, [110] neurons
+Weather: 34.8 (28.8)
+Weather+weekend: 34.1 (26.2)
+Weather+weekend+weekday: 32.8 (28.2)
 
-n=[40] 39.8
+20 epochs, 1 epoch = 500 days, x6:
+Weather: 30.5, 28.5, 28.3, 28.0, 31.8, 28.8 
+Weather+weekend: 27.0, 27.0, 26.6, 26.6, 26.8, 26.9
+Weather+weekend+weekday: 27.2, 27.3, 27.1, 27.6, 27.6, 27.5
+Weather+weekend+weekday+month: 29.7, 28.8, 29.1, 31.0, 30.4, 29.2
+Weather+weekend+month: 28.5, 28.2, 28.5, 28.1, 28.1, 29.3
 
-n=[40] 51.5
+15 epochs, 1 epoch = 500 days, x5:
+Weather: 29.3, 28.8, 28.6, 28.3, 30.0
+Weather+weekend: 27.0, 26.9, 26.9, 26.9, 27.2

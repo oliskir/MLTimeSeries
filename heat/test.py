@@ -88,6 +88,8 @@ def test(inputfile, logfile, modelfile, weightsfile, scalerfile):
     outfile.close()
     print 'Data and prediction saved to test.out'
     
+    return RMSE
+    
 
 import getopt
 

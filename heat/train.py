@@ -33,7 +33,8 @@ def train(inputfile, n_lag, n_forecast, t0_make, t0_forecast, n_neurons, n_epoch
     now = dt.datetime.now().strftime("%Y-%m-%d_%H%M%S")
     
     # open log file
-    logfile = open('output_train/'+now+'.log', 'w+')
+    lname = 'output_train/'+now+'.log'
+    logfile = open(lname, 'w+')
 
     # save configuration data
     nowPretty = dt.datetime.now().strftime("%Y-%m-%d, %H:%M:%S")
@@ -150,7 +151,7 @@ def train(inputfile, n_lag, n_forecast, t0_make, t0_forecast, n_neurons, n_epoch
 
     print 'RMSE: ',RMSE    
         
-    return RMSE
+    return RMSE, lname, mname, wname, sname
 
 
 import sys, getopt
